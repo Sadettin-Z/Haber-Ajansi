@@ -48,20 +48,26 @@ def get_latest_videos():
                 video_id = item["snippet"]["resourceId"]["videoId"]
                 
              # --- EN SADE TRANSKRİPT MANTIĞI (ÇEVİRİSİZ) ---
+                # --- EN SADE TRANSKRİPT MANTIĞI (ÇEREZLİ) ---
                 try:
-                    # Yeni API'yi başlat
                     ytt_api = YouTubeTranscriptApi()
-                    transcript_list = ytt_api.list(video_id)
+                    # Çerez dosyasını buraya ekliyoruz!
+                    transcript_list = ytt_api.list(video_id, cookies='cookies.txt')
                     
-                    # Sadece orijinal Türkçe veya İngilizce altyazıyı bul
                     transcript = transcript_list.find_transcript(['tr', 'en'])
                     
-                    # Veriyi çek ve birleştir
                     fetched_transcript = transcript.fetch()
                     transcript_data = fetched_transcript.to_raw_data()
                     transcript_text = " ".join([t['text'] for t in transcript_data])
                     
                     print(f"  -> Transkript başarıyla çekildi ({len(transcript_text)} karakter).")
+                    
+                except Exception as e:
+                    transcript_text = "(Bu videonun transkripti kapalı veya okunamadı.)"
+                    print(f"  -> Transkript ÇEKİLEMEDİ. Hata: {type(e).__name__}")
+
+                all_text += f"video başlığı: {title}\ntranskript: {transcript_text}\n\n"
+                # ----------------------------------------------
                     
                 except Exception as e:
                     # Altyazı yoksa hata vermeden geç
