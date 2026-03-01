@@ -47,18 +47,32 @@ def get_latest_videos():
                 title = item["snippet"]["title"]
                 video_id = item["snippet"]["resourceId"]["videoId"]
                 
-                print(f"Bulunan Video ({name}): {title}")
-                
-                # AttributeError Hatasını Çözen Yeni Transkript Mantığı
+              # En Güvenli Transkript Mantığı
                 try:
                     transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                    
                     try:
-                        # Önce doğrudan Türkçe (tr) altyazı ara
+                        # 1. Adım: Önce orijinal Türkçe (tr) altyazı ara
                         transcript = transcript_list.find_transcript(['tr'])
                     except:
-                        # Yoksa listedeki ilk mevcut altyazıyı (örn: İngilizce) al ve Türkçeye çevir
-                        transcript = list(transcript_list)[0].translate('tr')
+                        # 2. Adım: Türkçe yoksa, listedeki çevrilebilir ilk altyazıyı bul ve Türkçeye çevir
+                        transcript = None
+                        for t in transcript_list:
+                            if t.is_translatable:
+                                transcript = t.translate('tr')
+                                break
                         
+                        if not transcript:
+                            raise Exception("Çevrilebilir hiçbir altyazı bulunamadı.")
+                            
+                    transcript_data = transcript.fetch()
+                    transcript_text = " ".join([t['text'] for t in transcript_data])
+                    print(f"  -> Transkript başarıyla çekildi ({len(transcript_text)} karakter).")
+                    
+                except Exception as e:
+                    transcript_text = "(Bu videonun transkripti kapalı veya okunamadı.)"
+                    # Hatayı tam olarak görmek için str(e) kullanıyoruz
+                    print(f"  -> Transkript ÇEKİLEMEDİ. Hata: {str(e)[:150]}")
                     transcript_data = transcript.fetch()
                     transcript_text = " ".join([t['text'] for t in transcript_data])
                     print(f"  -> Transkript başarıyla çekildi ({len(transcript_text)} karakter).")
