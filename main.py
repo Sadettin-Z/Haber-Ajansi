@@ -18,7 +18,8 @@ CHANNELS = {
 
 def get_latest_videos():
     all_text = ""
-    yesterday_dt = datetime.utcnow() - timedelta(days=1)
+    # Zaman penceresini 48 saate (2 güne) çıkardık ki kıl payı kaçan videoları yakalayalım
+    yesterday_dt = datetime.utcnow() - timedelta(days=2) 
     
     for name, cid in CHANNELS.items():
         channel_url = f"https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id={cid}&key={YOUTUBE_API_KEY}"
@@ -27,12 +28,17 @@ def get_latest_videos():
         try:
             uploads_playlist_id = c_res["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
         except (KeyError, IndexError):
-            # İŞTE RÖNTGEN BURADA: YouTube'un asıl hatasını yazdırıyoruz
-            print(f"YOUTUBE HATASI ({name}) - YouTube'un Gerçek Cevabı: {c_res}")
+            print(f"YOUTUBE HATASI ({name}) - Kanal bilgisi alınamadı: {c_res}")
             continue
 
-        url = f"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId={uploads_playlist_id}&maxResults=3&key={YOUTUBE_API_KEY}"
+        # maxResults=10 yaptık (Shorts videoları asıl videoları aşağı itmesin diye)
+        url = f"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId={uploads_playlist_id}&maxResults=10&key={YOUTUBE_API_KEY}"
         res = requests.get(url).json()
+        
+        # Eğer API kota/limit hatası verdiyse loglara yazdıralım
+        if "error" in res:
+            print(f"API HATASI ({name}) - Video çekilirken hata: {res['error']['message']}")
+            continue
         
         for item in res.get("items", []):
             pub_date_str = item["snippet"]["publishedAt"]
@@ -42,6 +48,7 @@ def get_latest_videos():
                 title = item["snippet"]["title"]
                 description = item["snippet"]["description"]
                 all_text += f"\nKanal: {name}\nBaşlık: {title}\nÖzet: {description}\n---"
+                
     return all_text
 
 def get_ai_report(content):
