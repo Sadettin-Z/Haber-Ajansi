@@ -56,7 +56,7 @@ def get_ai_report(content):
     prompt = f"Aşağıdaki haber dökümlerini analiz et. Aynı haberi sunan kanalların yorumlarını kıyasla. Farklı haberleri grupla. Şık bir Discord raporu hazırla:\n\n{content}"
     
     response = client.models.generate_content(
-        model='gemini-3.0-flash', # veya 'gemini-3-flash'
+        model='gemini-3-flash-preview',
         contents=prompt,
     )
     return response.text
