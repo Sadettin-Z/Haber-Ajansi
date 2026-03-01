@@ -19,7 +19,7 @@ CHANNELS = {
 
 def get_latest_videos():
     all_text = ""
-    yesterday_dt = datetime.utcnow() - timedelta(days=2) 
+    yesterday_dt = datetime.utcnow() - timedelta(days=1)
     
     for name, cid in CHANNELS.items():
         channel_url = f"https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forHandle={cid}&key={YOUTUBE_API_KEY}"
@@ -44,21 +44,34 @@ def get_latest_videos():
             
             if pub_date > yesterday_dt:
                 title = item["snippet"]["title"]
-                video_id = item["snippet"]["resourceId"]["videoId"] # VİDEO ID'Sİ ALINDI
+                video_id = item["snippet"]["resourceId"]["videoId"]
                 
                 print(f"Bulunan Video ({name}): {title}")
                 
-                # TRANSKRİPT ÇEKME İŞLEMİ
+                # DAHA GÜÇLÜ TRANSKRİPT ÇEKME İŞLEMİ
                 try:
-                    # 'tr' dili öncelikli, yoksa otomatik oluşturulanı dener
-                    transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['tr'])
-                    transcript_text = " ".join([t['text'] for t in transcript_list])
+                    # Videodaki tüm altyazıları listele
+                    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                    
+                    try:
+                        # Önce doğrudan Türkçe (tr) altyazı bulmayı dene
+                        transcript = transcript_list.find_transcript(['tr'])
+                    except:
+                        # Bulamazsa mevcut ilk altyazıyı (örn: İngilizce) bul ve Türkçeye çevir
+                        transcript = transcript_list.filter(lambda t: t.is_translatable).first()
+                        transcript = transcript.translate('tr')
+                        
+                    transcript_data = transcript.fetch()
+                    transcript_text = " ".join([t['text'] for t in transcript_data])
                     print(f"  -> Transkript başarıyla çekildi ({len(transcript_text)} karakter).")
+                    
                 except Exception as e:
+                    # Eğer hata verirse, hatanın tam olarak ne olduğunu loglara yazdırıyoruz
                     transcript_text = "(Bu videonun transkripti kapalı veya okunamadı.)"
-                    print(f"  -> Transkript çekilemedi (Altyazı kapalı olabilir).")
+                    print(f"  -> Transkript çekilemedi. Detay: {type(e).__name__}")
 
-                all_text += f"\nKanal: {name}\nBaşlık: {title}\nTranskript: {transcript_text}\n---"
+                # DİKKAT: Artık 'description' yerine 'transcript_text' ekliyoruz!
+                all_text += f"\nVideo başlığı: {title}\nTranskript: {transcript_text}\n\n"
                 
     return all_text
 
