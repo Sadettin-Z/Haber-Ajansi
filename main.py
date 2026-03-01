@@ -82,3 +82,13 @@ if __name__ == "__main__":
         print("Rapor başarıyla Discord'a gönderildi!")
     else:
         print("Son 24 saatte bu kanallarda yeni video bulunamadı veya bir hata oluştu.")
+
+
+print("--- GÖNDERİLEN PROMPT BAŞLANGICI ---")
+print(prompt) 
+print("--- GÖNDERİLEN PROMPT BİTİŞİ ---")
+
+response = client.models.generate_content(
+    model='gemini-3-flash-preview',
+    contents=prompt,
+)
