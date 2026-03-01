@@ -10,7 +10,10 @@ DISCORD_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 CHANNELS = {
     "Serdar Akinan": "@serdarakinan",
-   
+    "Yılmaz Özdil": "@yilmaz_ozdil",
+    "Cem Gürdeniz": "@cemgurdenizz",
+    "Erdem Atay": "@erdematayveryansintv",
+    "Onlar TV": "@onlartv"
 }
 
 def get_latest_videos():
