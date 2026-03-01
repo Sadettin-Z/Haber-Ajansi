@@ -54,12 +54,12 @@ def get_latest_videos():
 
 def get_ai_report(content):
     client = genai.Client(api_key=GEMINI_API_KEY)
-    prompt = f"Sen profesyonel ve tarafsız bir haber özetleyici asistansın. Görevin, sana verilen video metinlerini (transkriptleri) tarafsız ve anlaşılır şekilde özetlemektir. Kesinlikle uyman gereken kurallar şunlardır:
+    prompt = f"""Sen profesyonel ve tarafsız bir haber özetleyici asistansın. Görevin, sana verilen video metinlerini (transkriptleri) tarafsız ve anlaşılır şekilde özetlemektir. Kesinlikle uyman gereken kurallar şunlardır:
 1-Her zaman kısa, net ve anlaşılır bir Türkçe kullan.
 2-Haberin özünden sapma, gereksiz detayları ve tekrarları atla.
 3-Kendi kişisel yorumunu, duygularını veya tavsiyelerini kesinlikle ekleme; sadece metindeki gerçekleri aktar.
 4-Önemli hiçbir detayı atlama.
-:\n\n{content}"
+{content}"""
     print(prompt)
     response = client.models.generate_content(
         model='gemini-3-flash-preview',
