@@ -1,8 +1,9 @@
 import os
 import requests
 from datetime import datetime, timedelta
-import google.generativeai as genai
+from google import genai
 
+# Ayarlar
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_URL = os.getenv("DISCORD_WEBHOOK_URL")
@@ -20,17 +21,20 @@ def get_latest_videos():
     yesterday_dt = datetime.utcnow() - timedelta(days=1)
     
     for name, cid in CHANNELS.items():
-        # Arama yerine doğrudan "Yüklemeler" listesini çekiyoruz (UC'yi UU yapıyoruz)
-        uploads_playlist_id = cid.replace("UC", "UU", 1)
-        url = f"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId={uploads_playlist_id}&maxResults=3&key={YOUTUBE_API_KEY}"
+        # 1. Adım: Kanalın resmi 'Yüklemeler' listesinin ID'sini sorarak öğreniyoruz
+        channel_url = f"https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id={cid}&key={YOUTUBE_API_KEY}"
+        c_res = requests.get(channel_url).json()
         
+        try:
+            uploads_playlist_id = c_res["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+        except (KeyError, IndexError):
+            print(f"YOUTUBE HATASI ({name}): Kanal detayları veya oynatma listesi bulunamadı.")
+            continue
+
+        # 2. Adım: Bulduğumuz o resmi listeden son videoları çekiyoruz
+        url = f"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId={uploads_playlist_id}&maxResults=3&key={YOUTUBE_API_KEY}"
         res = requests.get(url).json()
         
-        # Eğer YouTube bir hata döndürürse bunu ekrana yazdır (sessizce geçme)
-        if "error" in res:
-            print(f"YOUTUBE HATASI ({name}): {res['error']['message']}")
-            continue
-            
         for item in res.get("items", []):
             pub_date_str = item["snippet"]["publishedAt"]
             pub_date = datetime.strptime(pub_date_str, "%Y-%m-%dT%H:%M:%SZ")
@@ -43,10 +47,14 @@ def get_latest_videos():
     return all_text
 
 def get_ai_report(content):
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-pro')
+    # Yeni Gemini kütüphanesi altyapısı
+    client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"Aşağıdaki haber dökümlerini analiz et. Aynı haberi sunan kanalların yorumlarını kıyasla. Farklı haberleri grupla. Şık bir Discord raporu hazırla:\n\n{content}"
-    response = model.generate_content(prompt)
+    
+    response = client.models.generate_content(
+        model='gemini-1.5-pro',
+        contents=prompt,
+    )
     return response.text
 
 def send_to_discord(report):
@@ -55,13 +63,13 @@ def send_to_discord(report):
         requests.post(DISCORD_URL, json={"content": chunk})
 
 if __name__ == "__main__":
-    print("Sistem uyandı, videolar doğrudan oynatma listesinden çekiliyor...")
+    print("Sistem uyandı, videolar resmi kanallardan hatasız çekiliyor...")
     content = get_latest_videos()
     
     if content:
-        print("Harika! Yeni videolar bulundu. Gemini analiz ediyor...")
+        print("Harika! Yeni videolar bulundu. Yeni Gemini API'si ile analiz ediliyor...")
         report = get_ai_report(content)
         send_to_discord(report)
         print("Rapor başarıyla Discord'a gönderildi!")
     else:
-        print("Son 24 saatte bu kanallarda yeni video bulunamadı veya bir hata oluştu.")
+        print("Son 24 saatte bu kanallarda yeni video bulunamadı.")
