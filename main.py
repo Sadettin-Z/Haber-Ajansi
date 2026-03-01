@@ -72,5 +72,3 @@ def send_to_discord(report):
     for chunk in chunks:
         requests.post(DISCORD_URL, json={"content": chunk})
 
-
-)
