@@ -47,7 +47,7 @@ def get_latest_videos():
                 title = item["snippet"]["title"]
                 video_id = item["snippet"]["resourceId"]["videoId"]
                 
-              # En Güvenli Transkript Mantığı
+             # En Güvenli Transkript Mantığı
                 try:
                     transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
                     
@@ -71,15 +71,7 @@ def get_latest_videos():
                     
                 except Exception as e:
                     transcript_text = "(Bu videonun transkripti kapalı veya okunamadı.)"
-                    # Hatayı tam olarak görmek için str(e) kullanıyoruz
-                    print(f"  -> Transkript ÇEKİLEMEDİ. Hata: {str(e)[:150]}")
-                    transcript_data = transcript.fetch()
-                    transcript_text = " ".join([t['text'] for t in transcript_data])
-                    print(f"  -> Transkript başarıyla çekildi ({len(transcript_text)} karakter).")
-                    
-                except Exception as e:
-                    transcript_text = "(Bu videonun transkripti kapalı veya okunamadı.)"
-                    print(f"  -> Transkript çekilemedi. Detay: {type(e).__name__}")
+                    print(f"  -> Transkript ÇEKİLEMEDİ. Hata: {type(e).__name__} - {str(e)[:100]}")
 
                 # İSTEDİĞİN SADE FORMAT: Sadece Başlık ve Transkript
                 all_text += f"video başlığı: {title}\ntranskript: {transcript_text}\n\n"
