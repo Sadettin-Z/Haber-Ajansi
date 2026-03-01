@@ -47,34 +47,30 @@ def get_latest_videos():
                 title = item["snippet"]["title"]
                 video_id = item["snippet"]["resourceId"]["videoId"]
                 
-             # En Güvenli Transkript Mantığı
+             # --- EN SADE TRANSKRİPT MANTIĞI (ÇEVİRİSİZ) ---
                 try:
-                    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                    # Yeni API'yi başlat
+                    ytt_api = YouTubeTranscriptApi()
+                    transcript_list = ytt_api.list(video_id)
                     
-                    try:
-                        # 1. Adım: Önce orijinal Türkçe (tr) altyazı ara
-                        transcript = transcript_list.find_transcript(['tr'])
-                    except:
-                        # 2. Adım: Türkçe yoksa, listedeki çevrilebilir ilk altyazıyı bul ve Türkçeye çevir
-                        transcript = None
-                        for t in transcript_list:
-                            if t.is_translatable:
-                                transcript = t.translate('tr')
-                                break
-                        
-                        if not transcript:
-                            raise Exception("Çevrilebilir hiçbir altyazı bulunamadı.")
-                            
-                    transcript_data = transcript.fetch()
+                    # Sadece orijinal Türkçe veya İngilizce altyazıyı bul
+                    transcript = transcript_list.find_transcript(['tr', 'en'])
+                    
+                    # Veriyi çek ve birleştir
+                    fetched_transcript = transcript.fetch()
+                    transcript_data = fetched_transcript.to_raw_data()
                     transcript_text = " ".join([t['text'] for t in transcript_data])
+                    
                     print(f"  -> Transkript başarıyla çekildi ({len(transcript_text)} karakter).")
                     
                 except Exception as e:
+                    # Altyazı yoksa hata vermeden geç
                     transcript_text = "(Bu videonun transkripti kapalı veya okunamadı.)"
-                    print(f"  -> Transkript ÇEKİLEMEDİ. Hata: {type(e).__name__} - {str(e)[:100]}")
+                    print(f"  -> Transkript ÇEKİLEMEDİ. Hata: {type(e).__name__}")
 
-                # İSTEDİĞİN SADE FORMAT: Sadece Başlık ve Transkript
+                # İSTEDİĞİN SADE FORMAT
                 all_text += f"video başlığı: {title}\ntranskript: {transcript_text}\n\n"
+                # ----------------------------------------------
                 
     return all_text
 
