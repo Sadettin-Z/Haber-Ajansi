@@ -21,17 +21,16 @@ def get_latest_videos():
     yesterday_dt = datetime.utcnow() - timedelta(days=1)
     
     for name, cid in CHANNELS.items():
-        # 1. Adım: Kanalın resmi 'Yüklemeler' listesinin ID'sini sorarak öğreniyoruz
         channel_url = f"https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id={cid}&key={YOUTUBE_API_KEY}"
         c_res = requests.get(channel_url).json()
         
         try:
             uploads_playlist_id = c_res["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
         except (KeyError, IndexError):
-            print(f"YOUTUBE HATASI ({name}): Kanal detayları veya oynatma listesi bulunamadı.")
+            # İŞTE RÖNTGEN BURADA: YouTube'un asıl hatasını yazdırıyoruz
+            print(f"YOUTUBE HATASI ({name}) - YouTube'un Gerçek Cevabı: {c_res}")
             continue
 
-        # 2. Adım: Bulduğumuz o resmi listeden son videoları çekiyoruz
         url = f"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId={uploads_playlist_id}&maxResults=3&key={YOUTUBE_API_KEY}"
         res = requests.get(url).json()
         
@@ -39,7 +38,6 @@ def get_latest_videos():
             pub_date_str = item["snippet"]["publishedAt"]
             pub_date = datetime.strptime(pub_date_str, "%Y-%m-%dT%H:%M:%SZ")
             
-            # Sadece son 24 saatteki videoları al
             if pub_date > yesterday_dt:
                 title = item["snippet"]["title"]
                 description = item["snippet"]["description"]
@@ -47,7 +45,6 @@ def get_latest_videos():
     return all_text
 
 def get_ai_report(content):
-    # Yeni Gemini kütüphanesi altyapısı
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"Aşağıdaki haber dökümlerini analiz et. Aynı haberi sunan kanalların yorumlarını kıyasla. Farklı haberleri grupla. Şık bir Discord raporu hazırla:\n\n{content}"
     
@@ -63,13 +60,18 @@ def send_to_discord(report):
         requests.post(DISCORD_URL, json={"content": chunk})
 
 if __name__ == "__main__":
-    print("Sistem uyandı, videolar resmi kanallardan hatasız çekiliyor...")
+    print("Sistem uyandı, videolar resmi kanallardan çekiliyor...")
+    
+    # API Anahtarının kod tarafından görünüp görünmediğini test edelim
+    api_test = str(YOUTUBE_API_KEY)[:5] if YOUTUBE_API_KEY else "BULUNAMADI VEYA BOŞ!"
+    print(f"Sistemdeki YouTube API Anahtarı Durumu: {api_test}...")
+    
     content = get_latest_videos()
     
     if content:
-        print("Harika! Yeni videolar bulundu. Yeni Gemini API'si ile analiz ediliyor...")
+        print("Harika! Yeni videolar bulundu. Gemini analiz ediyor...")
         report = get_ai_report(content)
         send_to_discord(report)
         print("Rapor başarıyla Discord'a gönderildi!")
     else:
-        print("Son 24 saatte bu kanallarda yeni video bulunamadı.")
+        print("Son 24 saatte bu kanallarda yeni video bulunamadı veya bir hata oluştu.")
