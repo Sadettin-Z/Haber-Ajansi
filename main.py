@@ -2,7 +2,7 @@ import os
 import requests
 from datetime import datetime, timedelta
 from google import genai
-from youtube_transcript_api import YouTubeTranscriptApi # YENİ EKLENDİ
+from youtube_transcript_api import YouTubeTranscriptApi
 
 # Ayarlar
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
@@ -47,7 +47,6 @@ def get_latest_videos():
                 title = item["snippet"]["title"]
                 video_id = item["snippet"]["resourceId"]["videoId"]
                 
-             # --- EN SADE TRANSKRİPT MANTIĞI (ÇEVİRİSİZ) ---
                 # --- EN SADE TRANSKRİPT MANTIĞI (ÇEREZLİ) ---
                 try:
                     ytt_api = YouTubeTranscriptApi()
@@ -61,13 +60,6 @@ def get_latest_videos():
                     transcript_text = " ".join([t['text'] for t in transcript_data])
                     
                     print(f"  -> Transkript başarıyla çekildi ({len(transcript_text)} karakter).")
-                    
-                except Exception as e:
-                    transcript_text = "(Bu videonun transkripti kapalı veya okunamadı.)"
-                    print(f"  -> Transkript ÇEKİLEMEDİ. Hata: {type(e).__name__}")
-
-                all_text += f"video başlığı: {title}\ntranskript: {transcript_text}\n\n"
-                # ----------------------------------------------
                     
                 except Exception as e:
                     # Altyazı yoksa hata vermeden geç
@@ -119,4 +111,4 @@ if __name__ == "__main__":
         send_to_discord(report)
         print("Rapor başarıyla Discord'a gönderildi!")
     else:
-        print("Son 48 saatte bu kanallarda yeni video bulunamadı veya bir hata oluştu.")
+        print("Son 24 saatte bu kanallarda yeni video bulunamadı veya bir hata oluştu.")
