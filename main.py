@@ -44,7 +44,13 @@ def send_to_discord(report):
         requests.post(DISCORD_URL, json={"content": chunk})
 
 if __name__ == "__main__":
+    print("Sistem uyandı, videolar aranıyor...")
     content = get_latest_videos()
+    
     if content:
+        print("Harika! Yeni videolar bulundu. Gemini'ye gönderiliyor...")
         report = get_ai_report(content)
         send_to_discord(report)
+        print("Rapor başarıyla Discord'a gönderildi!")
+    else:
+        print("Son 24 saatte bu kanallarda yeni video bulunamadı. Rapor iptal.")
