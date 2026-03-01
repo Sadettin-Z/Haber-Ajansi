@@ -46,6 +46,7 @@ def get_latest_videos():
             
             if pub_date > yesterday_dt:
                 title = item["snippet"]["title"]
+                print(f"Bulunan Video ({name}): {title}")
                 description = item["snippet"]["description"]
                 all_text += f"\nKanal: {name}\nBaşlık: {title}\nÖzet: {description}\n---"
                 
@@ -53,8 +54,13 @@ def get_latest_videos():
 
 def get_ai_report(content):
     client = genai.Client(api_key=GEMINI_API_KEY)
-    prompt = f"Aşağıdaki haber dökümlerini analiz et. Aynı haberi sunan kanalların yorumlarını kıyasla. Farklı haberleri grupla. Şık bir Discord raporu hazırla:\n\n{content}"
-    
+    prompt = f"Sen profesyonel ve tarafsız bir haber özetleyici asistansın. Görevin, sana verilen video metinlerini (transkriptleri) tarafsız ve anlaşılır şekilde özetlemektir. Kesinlikle uyman gereken kurallar şunlardır:
+1-Her zaman kısa, net ve anlaşılır bir Türkçe kullan.
+2-Haberin özünden sapma, gereksiz detayları ve tekrarları atla.
+3-Kendi kişisel yorumunu, duygularını veya tavsiyelerini kesinlikle ekleme; sadece metindeki gerçekleri aktar.
+4-Önemli hiçbir detayı atlama.
+:\n\n{content}"
+    print(prompt)
     response = client.models.generate_content(
         model='gemini-3-flash-preview',
         contents=prompt,
@@ -66,29 +72,5 @@ def send_to_discord(report):
     for chunk in chunks:
         requests.post(DISCORD_URL, json={"content": chunk})
 
-if __name__ == "__main__":
-    print("Sistem uyandı, videolar resmi kanallardan çekiliyor...")
-    
-    # API Anahtarının kod tarafından görünüp görünmediğini test edelim
-    api_test = str(YOUTUBE_API_KEY)[:5] if YOUTUBE_API_KEY else "BULUNAMADI VEYA BOŞ!"
-    print(f"Sistemdeki YouTube API Anahtarı Durumu: {api_test}...")
-    
-    content = get_latest_videos()
-    
-    if content:
-        print("Harika! Yeni videolar bulundu. Gemini analiz ediyor...")
-        report = get_ai_report(content)
-        send_to_discord(report)
-        print("Rapor başarıyla Discord'a gönderildi!")
-    else:
-        print("Son 24 saatte bu kanallarda yeni video bulunamadı veya bir hata oluştu.")
 
-
-print("--- GÖNDERİLEN PROMPT BAŞLANGICI ---")
-print(prompt) 
-print("--- GÖNDERİLEN PROMPT BİTİŞİ ---")
-
-response = client.models.generate_content(
-    model='gemini-3-flash-preview',
-    contents=prompt,
 )
