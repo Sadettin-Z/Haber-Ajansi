@@ -9,11 +9,11 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 CHANNELS = {
-    "Serdar Akinan": "UCyHwV6n_r4O8Y9v7b0X-Iyg",
-    "Yılmaz Özdil": "UCW7-Nl8WpD6VnU7GfKj-pAg",
-    "Cem Gürdeniz": "UCLn_f_m8vY0L9b6v-uK0k6g",
-    "Erdem Atay": "UC9W1Zp-pE1Gj0v7b8_v4L0w",
-    "Onlar TV": "UCX8P7_7v1b8MvY-6v-G0u6w"
+    "Serdar Akinan": "@serdarakinan",
+    "Yılmaz Özdil": "@yilmaz_ozdil",
+    "Cem Gürdeniz": "@cemgurdenizz",
+    "Erdem Atay": "@erdematayveryansintv",
+    "Onlar TV": "@onlartv"
 }
 
 def get_latest_videos():
@@ -22,7 +22,7 @@ def get_latest_videos():
     yesterday_dt = datetime.utcnow() - timedelta(days=2) 
     
     for name, cid in CHANNELS.items():
-        channel_url = f"https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id={cid}&key={YOUTUBE_API_KEY}"
+        channel_url = f"https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forHandle={cid}&key={YOUTUBE_API_KEY}"
         c_res = requests.get(channel_url).json()
         
         try:
