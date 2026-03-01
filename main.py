@@ -47,16 +47,10 @@ def get_latest_videos():
                 title = item["snippet"]["title"]
                 video_id = item["snippet"]["resourceId"]["videoId"]
                 
-                # --- EN SADE TRANSKRİPT MANTIĞI (ÇEREZLİ) ---
+                # --- ÇEREZSİZ, DOĞRUDAN TRANSKRİPT ---
                 try:
-                    ytt_api = YouTubeTranscriptApi()
-                    # Çerez dosyasını buraya ekliyoruz!
-                    transcript_list = ytt_api.list(video_id, cookies='cookies.txt')
-                    
-                    transcript = transcript_list.find_transcript(['tr', 'en'])
-                    
-                    fetched_transcript = transcript.fetch()
-                    transcript_data = fetched_transcript.to_raw_data()
+                    # cookies parametresini ve list metodunu çıkardık, direkt get_transcript kullanıyoruz.
+                    transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=['tr', 'en'])
                     transcript_text = " ".join([t['text'] for t in transcript_data])
                     
                     print(f"  -> Transkript başarıyla çekildi ({len(transcript_text)} karakter).")
@@ -66,9 +60,7 @@ def get_latest_videos():
                     transcript_text = "(Bu videonun transkripti kapalı veya okunamadı.)"
                     print(f"  -> Transkript ÇEKİLEMEDİ. Hata: {type(e).__name__}")
 
-                # İSTEDİĞİN SADE FORMAT
                 all_text += f"video başlığı: {title}\ntranskript: {transcript_text}\n\n"
-                # ----------------------------------------------
                 
     return all_text
 
@@ -83,7 +75,6 @@ def get_ai_report(content):
 {content}"""
     
     print("--- GÖNDERİLEN PROMPT ÖNİZLEMESİ ---")
-    # Çok uzun metinler logları kilitlemesin diye sadece ilk 1000 karakteri yazdırıyoruz
     print(prompt[:1000] + "\n... [DEVAMI VAR] ...") 
     
     response = client.models.generate_content(
