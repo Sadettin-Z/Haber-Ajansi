@@ -72,7 +72,7 @@ def transkript_cek(video_id):
 def get_ai_report(full_content):
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"Aşağıdaki haber metinlerini tarafsız ve kısa bir şekilde özetle:\n\n{full_content}"
-    response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+    response = client.models.generate_content(model='gemini-3-flash-preview', contents=prompt)
     return response.text
 
 def send_to_discord(report):
