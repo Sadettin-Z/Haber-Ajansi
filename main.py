@@ -49,22 +49,15 @@ def get_latest_video_list():
 
 # --- 2. KISIM: SENİN ÇALIŞAN TRANSKRİPT METODUN ---
 def transkript_cek(video_id):
-    """Senin doğruladığın çalışan transkript çekme mantığı."""
     try:
-        # Yeni API'yi başlat
-        ytt_api = YouTubeTranscriptApi()
+        url = f"https://api.supadata.ai/v1/youtube/transcript?videoId={video_id}&lang=tr"
+        headers = {"x-api-key": os.getenv("SUPADATA_API_KEY")}
+        res = requests.get(url, headers=headers).json()
         
-        # Altyazı listesini çek ve Türkçe veya İngilizce olanı bul
-        transcript_list = ytt_api.list(video_id)
-        transcript = transcript_list.find_transcript(['tr', 'en'])
-        
-        # Veriyi işle
-        fetched_transcript = transcript.fetch()
-        transcript_data = fetched_transcript.to_raw_data()
-        
-        result = " ".join([t['text'] for t in transcript_data])
-          # ← print first
-        return result  # ← then return
+        if "content" in res:
+            return " ".join([t["text"] for t in res["content"]])
+        else:
+            return "(Transkript bulunamadı)"
     except Exception as e:
         return f"(Transkript okunamadı: {type(e).__name__})"
 
