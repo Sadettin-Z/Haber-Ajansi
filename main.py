@@ -62,17 +62,16 @@ def transkript_cek(video_id):
         fetched_transcript = transcript.fetch()
         transcript_data = fetched_transcript.to_raw_data()
         
-        # Metni birleştir
-        return " ".join([t['text'] for t in transcript_data])
-        
+        result = " ".join([t['text'] for t in transcript_data])
+        print(result)  # ← print first
+        return result  # ← then return
     except Exception as e:
         return f"(Transkript okunamadı: {type(e).__name__})"
-
+"""
 # --- 3. KISIM: ANALİZ VE GÖNDERİM ---
 def get_ai_report(full_content):
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"Aşağıdaki haber metinlerini tarafsız ve kısa bir şekilde özetle:\n\n{full_content}"
-    print(prompt)
     response = client.models.generate_content(model='gemini-3-flash-preview', contents=prompt)
     return response.text
 
@@ -100,3 +99,4 @@ if __name__ == "__main__":
         final_report = get_ai_report(content_for_ai)
         send_to_discord(final_report)
         print("İşlem tamamlandı, rapor Discord'a uçtu!")
+"""
