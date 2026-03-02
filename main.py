@@ -2,12 +2,12 @@ import os
 import requests
 from datetime import datetime, timedelta
 from google import genai
-from youtube_transcript_api import YouTubeTranscriptApi
 
 # --- AYARLAR ---
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_URL = os.getenv("DISCORD_WEBHOOK_URL")
+SUPADATA_API_KEY = os.getenv("SUPADATA_API_KEY")
 
 CHANNELS = {
     "Serdar Akinan": "@serdarakinan",
@@ -19,7 +19,6 @@ CHANNELS = {
 
 # --- 1. KISIM: VİDEOLARI BULMA ---
 def get_latest_video_list():
-    """Kanalları gezer ve son 24 saatteki videoların listesini döner."""
     found_videos = []
     yesterday_dt = datetime.utcnow() - timedelta(days=1)
     
@@ -43,15 +42,15 @@ def get_latest_video_list():
                         "video_id": item["snippet"]["resourceId"]["videoId"]
                     })
         except Exception as e:
-            print(f"HATA: {name} kanalı taranırken bir sorun oluştu.")
+            print(f"HATA: {name} kanalı taranırken bir sorun oluştu: {e}")
             
     return found_videos
 
-# --- 2. KISIM: SENİN ÇALIŞAN TRANSKRİPT METODUN ---
+# --- 2. KISIM: TRANSKRİPT ---
 def transkript_cek(video_id):
     try:
         url = f"https://api.supadata.ai/v1/youtube/transcript?videoId={video_id}&lang=tr"
-        headers = {"x-api-key": os.getenv("SUPADATA_API_KEY")}
+        headers = {"x-api-key": SUPADATA_API_KEY}
         res = requests.get(url, headers=headers).json()
         
         if "content" in res:
@@ -82,13 +81,17 @@ if __name__ == "__main__":
     if not videos:
         print("Son 24 saatte yeni video bulunamadı.")
     else:
+        print(f"\nBulunan videolar ({len(videos)} adet):")  # ← shows total count
+        for v in videos:
+            print(f"  - [{v['name']}] {v['title']}")        # ← lists each video
+        print()
+
         content_for_ai = ""
         for v in videos:
             print(f"İşleniyor: {v['title']}")
             t_text = transkript_cek(v['video_id'])
             content_for_ai += f"Kanal: {v['name']}\nBaşlık: {v['title']}\nMetin: {t_text}\n\n"
-            print(content_for_ai)
-""" 
+"""       
         print("Gemini'ye gönderiliyor...")
         final_report = get_ai_report(content_for_ai)
         send_to_discord(final_report)
