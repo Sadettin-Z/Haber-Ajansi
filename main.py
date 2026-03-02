@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from google import genai
 from youtube_transcript_api import YouTubeTranscriptApi
 
-# Ayarlar
+# --- AYARLAR ---
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_URL = os.getenv("DISCORD_WEBHOOK_URL")
@@ -17,70 +17,62 @@ CHANNELS = {
     "Onlar TV": "@onlartv"
 }
 
-def get_latest_videos():
-    all_text = ""
-    # Sadece son 24 saati (1 gün) tarıyoruz
-    yesterday_dt = datetime.utcnow() - timedelta(days=1) 
+# --- 1. KISIM: VİDEOLARI BULMA ---
+def get_latest_video_list():
+    """Kanalları gezer ve son 24 saatteki videoların listesini döner."""
+    found_videos = []
+    yesterday_dt = datetime.utcnow() - timedelta(days=1)
     
-    for name, cid in CHANNELS.items():
-        channel_url = f"https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forHandle={cid}&key={YOUTUBE_API_KEY}"
-        c_res = requests.get(channel_url).json()
-        
+    for name, handle in CHANNELS.items():
+        channel_url = f"https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forHandle={handle}&key={YOUTUBE_API_KEY}"
         try:
-            uploads_playlist_id = c_res["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
-        except (KeyError, IndexError):
-            print(f"YOUTUBE HATASI ({name}) - Kanal bilgisi alınamadı.")
-            continue
-
-        url = f"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId={uploads_playlist_id}&maxResults=10&key={YOUTUBE_API_KEY}"
-        res = requests.get(url).json()
-        
-        if "error" in res:
-            print(f"API HATASI ({name}) - Video çekilirken hata: {res['error']['message']}")
-            continue
-        
-        for item in res.get("items", []):
-            pub_date_str = item["snippet"]["publishedAt"]
-            pub_date = datetime.strptime(pub_date_str, "%Y-%m-%dT%H:%M:%SZ")
+            c_res = requests.get(channel_url).json()
+            uploads_id = c_res["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
             
-            if pub_date > yesterday_dt:
-                title = item["snippet"]["title"]
-                video_id = item["snippet"]["resourceId"]["videoId"]
+            url = f"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId={uploads_id}&maxResults=5&key={YOUTUBE_API_KEY}"
+            res = requests.get(url).json()
+            
+            for item in res.get("items", []):
+                pub_date_str = item["snippet"]["publishedAt"]
+                pub_date = datetime.strptime(pub_date_str, "%Y-%m-%dT%H:%M:%SZ")
                 
-                # --- ÇEREZSİZ, DOĞRUDAN TRANSKRİPT ---
-                try:
-                    # cookies parametresini ve list metodunu çıkardık, direkt get_transcript kullanıyoruz.
-                    transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=['tr', 'en'])
-                    transcript_text = " ".join([t['text'] for t in transcript_data])
-                    
-                    print(f"  -> Transkript başarıyla çekildi ({len(transcript_text)} karakter).")
-                    
-                except Exception as e:
-                    # Altyazı yoksa hata vermeden geç
-                    transcript_text = "(Bu videonun transkripti kapalı veya okunamadı.)"
-                    print(f"  -> Transkript ÇEKİLEMEDİ. Hata: {type(e).__name__}")
+                if pub_date > yesterday_dt:
+                    found_videos.append({
+                        "name": name,
+                        "title": item["snippet"]["title"],
+                        "video_id": item["snippet"]["resourceId"]["videoId"]
+                    })
+        except Exception as e:
+            print(f"HATA: {name} kanalı taranırken bir sorun oluştu.")
+            
+    return found_videos
 
-                all_text += f"video başlığı: {title}\ntranskript: {transcript_text}\n\n"
-                
-    return all_text
+# --- 2. KISIM: SENİN ÇALIŞAN TRANSKRİPT METODUN ---
+def transkript_cek(video_id):
+    """Senin doğruladığın çalışan transkript çekme mantığı."""
+    try:
+        # Yeni API'yi başlat
+        ytt_api = YouTubeTranscriptApi()
+        
+        # Altyazı listesini çek ve Türkçe veya İngilizce olanı bul
+        transcript_list = ytt_api.list(video_id)
+        transcript = transcript_list.find_transcript(['tr', 'en'])
+        
+        # Veriyi işle
+        fetched_transcript = transcript.fetch()
+        transcript_data = fetched_transcript.to_raw_data()
+        
+        # Metni birleştir
+        return " ".join([t['text'] for t in transcript_data])
+        
+    except Exception as e:
+        return f"(Transkript okunamadı: {type(e).__name__})"
 
-def get_ai_report(content):
+# --- 3. KISIM: ANALİZ VE GÖNDERİM ---
+def get_ai_report(full_content):
     client = genai.Client(api_key=GEMINI_API_KEY)
-    prompt = f"""Sen profesyonel ve tarafsız bir haber özetleyici asistansın. Görevin, sana verilen video metinlerini (transkriptleri) tarafsız ve anlaşılır şekilde özetlemektir. Kesinlikle uyman gereken kurallar şunlardır:
-1-Her zaman kısa, net ve anlaşılır bir Türkçe kullan.
-2-Haberin özünden sapma, gereksiz detayları ve tekrarları atla.
-3-Kendi kişisel yorumunu, duygularını veya tavsiyelerini kesinlikle ekleme; sadece metindeki gerçekleri aktar.
-4-Önemli hiçbir detayı atlama.
-
-{content}"""
-    
-    print("--- GÖNDERİLEN PROMPT ÖNİZLEMESİ ---")
-    print(prompt[:1000] + "\n... [DEVAMI VAR] ...") 
-    
-    response = client.models.generate_content(
-        model='gemini-3-flash-preview',
-        contents=prompt,
-    )
+    prompt = f"Aşağıdaki haber metinlerini tarafsız ve kısa bir şekilde özetle:\n\n{full_content}"
+    response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
     return response.text
 
 def send_to_discord(report):
@@ -88,18 +80,22 @@ def send_to_discord(report):
     for chunk in chunks:
         requests.post(DISCORD_URL, json={"content": chunk})
 
+# --- ANA ÇALIŞTIRICI ---
 if __name__ == "__main__":
-    print("Sistem uyandı, videolar resmi kanallardan çekiliyor...")
+    print("Sistem başlatıldı...")
     
-    api_test = str(YOUTUBE_API_KEY)[:5] if YOUTUBE_API_KEY else "BULUNAMADI VEYA BOŞ!"
-    print(f"Sistemdeki YouTube API Anahtarı Durumu: {api_test}...")
+    videos = get_latest_video_list()
     
-    content = get_latest_videos()
-    
-    if content:
-        print("Yeni videolar bulundu. Gemini analiz ediyor...")
-        report = get_ai_report(content)
-        send_to_discord(report)
-        print("Rapor başarıyla Discord'a gönderildi!")
+    if not videos:
+        print("Son 24 saatte yeni video bulunamadı.")
     else:
-        print("Son 24 saatte bu kanallarda yeni video bulunamadı veya bir hata oluştu.")
+        content_for_ai = ""
+        for v in videos:
+            print(f"İşleniyor: {v['title']}")
+            t_text = transkript_cek(v['video_id'])
+            content_for_ai += f"Kanal: {v['name']}\nBaşlık: {v['title']}\nMetin: {t_text}\n\n"
+        
+        print("Gemini'ye gönderiliyor...")
+        final_report = get_ai_report(content_for_ai)
+        send_to_discord(final_report)
+        print("İşlem tamamlandı, rapor Discord'a uçtu!")
