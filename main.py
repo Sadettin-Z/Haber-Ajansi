@@ -49,7 +49,7 @@ def get_latest_video_list():
 # --- 2. KISIM: TRANSKRİPT ---
 def transkript_cek(video_id):
     try:
-        url = f"https://api.supadata.ai/v1/youtube/transcript?videoId={video_id}&lang=tr"
+        url = f"https://api.supadata.ai/v1/youtube/transcript?videoId={video_id}"
         headers = {"x-api-key": SUPADATA_API_KEY}
         res = requests.get(url, headers=headers).json()
         
