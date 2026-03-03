@@ -1,5 +1,6 @@
 import os
 import requests
+import isodate
 from datetime import datetime, timedelta
 from google import genai
 
@@ -16,6 +17,18 @@ CHANNELS = {
     "Onlar TV": "@onlartv"
 }
 
+def is_short(video_id):
+    res = requests.get(
+        f"https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id={video_id}&key={YOUTUBE_API_KEY}"
+    ).json()
+    try:
+        import isodate
+        duration = res["items"][0]["contentDetails"]["duration"]
+        seconds = isodate.parse_duration(duration).total_seconds()
+        return seconds <= 180
+    except Exception:
+        return False
+
 def get_latest_video_list():
     found_videos = []
     yesterday_dt = datetime.utcnow() - timedelta(days=1)
@@ -27,7 +40,9 @@ def get_latest_video_list():
             for item in res.get("items", []):
                 pub_date = datetime.strptime(item["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ")
                 if pub_date > yesterday_dt:
-                    found_videos.append({"name": name, "title": item["snippet"]["title"], "video_id": item["snippet"]["resourceId"]["videoId"]})
+                    video_id = item["snippet"]["resourceId"]["videoId"]
+                    if not is_short(video_id):
+                        found_videos.append({"name": name, "title": item["snippet"]["title"], "video_id": video_id})
         except Exception as e:
             print(f"HATA: {name}: {e}")
     return found_videos
