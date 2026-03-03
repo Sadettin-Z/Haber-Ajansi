@@ -3,6 +3,7 @@ import requests
 import isodate
 from datetime import datetime, timedelta
 from google import genai
+import time
 
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -47,6 +48,7 @@ def get_latest_video_list():
             print(f"HATA: {name}: {e}")
     return found_videos
 
+
 def transkript_cek(video_id):
     for attempt in range(3):
         try:
@@ -55,9 +57,11 @@ def transkript_cek(video_id):
                 headers={"x-api-key": SUPADATA_API_KEY},
                 timeout=10
             ).json()
-            print(f"API yanıtı: {res}")  # 👈 geçici debug satırı
             if "content" in res:
                 return " ".join([t["text"] for t in res["content"]])
+            if res.get("error") == "limit-exceeded":
+                print(f"Rate limit, 10 saniye bekleniyor... (Deneme {attempt+1})")
+                time.sleep(10)
         except Exception as e:
             print(f"Deneme {attempt+1} başarısız: {type(e).__name__}")
     
