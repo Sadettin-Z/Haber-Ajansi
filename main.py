@@ -91,8 +91,9 @@ if __name__ == "__main__":
             print(f"İşleniyor: {v['title']}")
             t_text = transkript_cek(v['video_id'])
             content_for_ai += f"Kanal: {v['name']}\nBaşlık: {v['title']}\nMetin: {t_text}\n\n"
-            print(content_for_ai)
-       
+        
+        print(content_for_ai)  # ← moved outside, prints once after all videos
+        
         print("Gemini'ye gönderiliyor...")
         final_report = get_ai_report(content_for_ai)
         send_to_discord(final_report)
