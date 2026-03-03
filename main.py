@@ -48,13 +48,14 @@ def get_latest_video_list():
     return found_videos
 
 def transkript_cek(video_id):
-    for attempt in range(3):  # tries 3 times before giving up
+    for attempt in range(3):
         try:
             res = requests.get(
                 f"https://api.supadata.ai/v1/youtube/transcript?videoId={video_id}",
                 headers={"x-api-key": SUPADATA_API_KEY},
                 timeout=10
             ).json()
+            print(f"API yanıtı: {res}")  # 👈 geçici debug satırı
             if "content" in res:
                 return " ".join([t["text"] for t in res["content"]])
         except Exception as e:
