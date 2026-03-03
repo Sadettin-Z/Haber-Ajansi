@@ -57,6 +57,7 @@ def get_ai_report(full_content):
 * Bir haber birden fazla kanalda geçiyorsa, her kanalın o habere bakışını ayrı ayrı yaz.
 * Bir kanal belirli bir habere hiç değinmediyse, o kanalı o haberin altına ekleme.
 * Raporun başında hangi kanalların hangi videosunu kullanıldığını bir liste halinde belirt.
+* Rapor Discord'da yayınlamaya uygun olmalı.
 FORMAT Her haber için şu yapıyı kullan:
 🔹 [HABERİN KISA BAŞLIĞI]
 Özet: [Haberin tarafsız özeti. Kim, ne yaptı, nerede, ne zaman, sonucu ne?]
