@@ -78,12 +78,12 @@ def get_ai_report(full_content):
 * Bir kanal belirli bir habere hiç değinmediyse, o kanalı o haberin altına ekleme.
 * Raporun başında hangi kanalların hangi videosunu kullanıldığını bir liste halinde belirt.
 * Rapor Discord'da yayınlamaya uygun olmalı.
-* Yanıtına başlarken hiçbir selamlama, nezaket cümlesi veya açıklama metni kullanma. Yanıtın başına tarih ekle
+* Yanıtına başlarken hiçbir selamlama, nezaket cümlesi veya açıklama metni kullanma. Yanıtın başlangıcına bugünün tarihini ekle.
 
 FORMAT
 Her haber için şu yapıyı kullan:
 🔹 [HABERİN KISA BAŞLIĞI]
-Özet: (Haberin tarafsız özeti. Kim, ne yaptı, nerede, ne zaman, sonucu ne?)
+Haber: (Haberin tarafsız özeti. Kim, ne yaptı, nerede, ne zaman, sonucu ne?)
 Yayıncı Yorumları:
 * [Yayıncı 1 Adı]: (Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu)
 * [Yayıncı 2 Adı]: (Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu)
@@ -94,8 +94,19 @@ Yayıncı Yorumları:
     return client.models.generate_content(model='gemini-3-flash-preview', contents=prompt).text
 #gemini-3-flash-preview
 def send_to_discord(report):
-    requests.post(DISCORD_URL, files={"file": ("rapor.txt", report.encode("utf-8"), "text/plain")})
-
+    while report:
+        if len(report) <= 1900:
+            chunk = report
+            report = ""
+        else:
+            split_at = report.rfind("\n", 0, 1900)
+            if split_at == -1:
+                split_at = report.rfind(" ", 0, 1900)
+            if split_at == -1:
+                split_at = 1900
+            chunk = report[:split_at]
+            report = report[split_at:].lstrip()
+        requests.post(DISCORD_URL, json={"content": chunk})
 if __name__ == "__main__":
     videos = get_latest_video_list()
     if not videos:
