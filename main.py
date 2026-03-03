@@ -67,7 +67,7 @@ Yayıncı Yorumları:
 
 {full_content}"""
     print(prompt)
-    return client.models.generate_content(model='gemini-3.1-pro-preview', contents=prompt).text
+    return client.models.generate_content(model='gemini-3-flash-preview', contents=prompt).text
 #gemini-3-flash-preview
 def send_to_discord(report):
     for chunk in [report[i:i+1900] for i in range(0, len(report), 1900)]:
