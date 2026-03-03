@@ -91,8 +91,9 @@ Yayıncı Yorumları:
 
 {full_content}"""
     print(prompt)
-    return client.models.generate_content(model='gemini-3-flash-preview', contents=prompt).text
+    return client.models.generate_content(model='gemini-3-pro-preview', contents=prompt).text
 #gemini-3-flash-preview
+#gemini-3-pro-preview
 def send_to_discord(report):
     while report:
         if len(report) <= 1900:
