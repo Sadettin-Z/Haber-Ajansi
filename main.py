@@ -74,12 +74,13 @@ def get_ai_report(full_content):
 * Bir kanal belirli bir habere hiç değinmediyse, o kanalı o haberin altına ekleme.
 * Raporun başında hangi kanalların hangi videosunu kullanıldığını bir liste halinde belirt.
 * Rapor Discord'da yayınlamaya uygun olmalı.
+* Yanıtına başlarken hiçbir selamlama, nezaket cümlesi veya açıklama metni kullanma. Yanıtın doğrudan video listesi ile başla
 FORMAT Her haber için şu yapıyı kullan:
 🔹 [HABERİN KISA BAŞLIĞI]
-Özet: [Haberin tarafsız özeti. Kim, ne yaptı, nerede, ne zaman, sonucu ne?]
+Özet: (Haberin tarafsız özeti. Kim, ne yaptı, nerede, ne zaman, sonucu ne?)
 Yayıncı Yorumları:
-* [Yayıncı 1 Adı]: [Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu]
-* [Yayıncı 2 Adı]: [Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu]
+* [Yayıncı 1 Adı]: (Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu)
+* [Yayıncı 2 Adı]: (Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu)
 * (Bu haberi ele alan tüm yayıncıları sırasıyla ekle)
 
 {full_content}"""
