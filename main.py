@@ -49,10 +49,24 @@ def transkript_cek(video_id):
 
 def get_ai_report(full_content):
     client = genai.Client(api_key=GEMINI_API_KEY)
-    prompt = f"Aşağıdaki haber metinlerini tarafsız ve kısa bir şekilde özetle:\n\n{full_content}"
+    prompt = f"GÖREV Sana birden fazla YouTube haber kanalının video transkriptlerini yükleyeceğim. Bu transkriptleri okuyarak içlerinde geçen tüm haberleri aşağıdaki formatta özetle.
+ÖNEMLİ KURALLAR
+* HİÇBİR haberi atlama. Haber değeri taşıyan her konuyu, ne kadar kısa geçilmiş olursa olsun, listeye ekle.
+* Her haberi tarafsız ve nesnel bir şekilde özetle. Kendi yorum veya değerlendirmeni ekleme.
+* Yayıncıların yorumlarını olduğu gibi aktar, yorumlamadan veya yumuşatmadan.
+* Bir haber birden fazla kanalda geçiyorsa, her kanalın o habere bakışını ayrı ayrı yaz.
+* Bir kanal belirli bir habere hiç değinmediyse, o kanalı o haberın altına ekleme.
+* Raporun başında hangi kanalların hangi videosunu kullanıldığını bir liste halinde belirt.
+FORMAT Her haber için şu yapıyı kullan:
+🔹 [HABERİN KISA BAŞLIĞI]
+Özet: [Haberin tarafsız özeti. Kim, ne yaptı, nerede, ne zaman, sonucu ne?]
+Yayıncı Yorumları:
+* [Yayıncı 1 Adı]: [Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu]
+* [Yayıncı 2 Adı]: [Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu]
+* (Bu haberi ele alan tüm yayıncıları sırasıyla ekle)\n\n{full_content}"
     print(prompt)
-    return client.models.generate_content(model='gemini-3-flash-preview', contents=prompt).text
-
+    return client.models.generate_content(model='gemini-3.1-pro-preview', contents=prompt).text
+#gemini-3-flash-preview
 def send_to_discord(report):
     for chunk in [report[i:i+1900] for i in range(0, len(report), 1900)]:
         requests.post(DISCORD_URL, json={"content": chunk})
