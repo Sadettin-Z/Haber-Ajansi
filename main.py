@@ -64,6 +64,7 @@ def transkript_cek(video_id):
 def get_ai_report(full_content):
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"Aşağıdaki haber metinlerini tarafsız ve kısa bir şekilde özetle:\n\n{full_content}"
+    print(prompt)
     response = client.models.generate_content(model='gemini-3-flash-preview', contents=prompt)
     return response.text
 
@@ -92,7 +93,7 @@ if __name__ == "__main__":
             t_text = transkript_cek(v['video_id'])
             content_for_ai += f"Kanal: {v['name']}\nBaşlık: {v['title']}\nMetin: {t_text}\n\n"
         
-        print(content_for_ai)  # ← moved outside, prints once after all videos
+       
         
         print("Gemini'ye gönderiliyor...")
         final_report = get_ai_report(content_for_ai)
