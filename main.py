@@ -71,38 +71,67 @@ def transkript_cek(video_id):
     return "(Transkript bulunamadı)"
 
 def get_ai_report(full_content):
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    prompt = f"""GÖREV Sana birden fazla YouTube haber kanalının video transkriptlerini yükleyeceğim. Bu transkriptleri okuyarak içlerinde geçen tüm haberleri aşağıdaki formatta özetle.
-ÖNEMLİ KURALLAR
-* HİÇBİR haberi atlama. Haber değeri taşıyan her konuyu, ne kadar kısa geçilmiş olursa olsun, listeye ekle.
-* Her haberi tarafsız ve nesnel bir şekilde özetle. Kendi yorum veya değerlendirmeni ekleme.
-* Yayıncıların yorumlarını olduğu gibi aktar, yorumlamadan veya yumuşatmadan.
-* Bir haber birden fazla kanalda geçiyorsa, her kanalın o habere bakışını ayrı ayrı yaz.
-* Bir kanal belirli bir habere hiç değinmediyse, o kanalı o haberin altına ekleme.
-* Raporun başında hangi kanalların hangi videosunu kullanıldığını bir liste halinde belirt.
-* Rapor Discord'da yayınlamaya uygun olmalı.
-* Yanıtına başlarken hiçbir selamlama, nezaket cümlesi veya açıklama metni kullanma. Yanıtın başlangıcına bugünün tarihini ekle.
-
-FORMAT
-Her haber için şu yapıyı kullan:
-🔹 [HABERİN KISA BAŞLIĞI]
-Haber: (Haberin tarafsız özeti. Kim, ne yaptı, nerede, ne zaman, sonucu ne?)
-Yayıncı Yorumları:
-* [Yayıncı 1 Adı]: (Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu)
-* [Yayıncı 2 Adı]: (Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu)
-* (Bu haberi ele alan tüm yayıncıları sırasıyla ekle)
-
-{full_content}"""
-    print(prompt)
-    with client.messages.stream(
-        model="claude-sonnet-4-6",
-        max_tokens=64000,
-        messages=[{"role": "user", "content": prompt}]
-    ) as stream:
-        for text in stream.text_stream:
-            full_response += text
+    client = genai.Client(api_key=GEMINI_API_KEY)
     
-    return full_response
+    # Raporun başına eklenecek dinamik tarih bilgisi
+    current_date = datetime.now().strftime("%d.%m.%Y")
+    
+    # MODELİN KİMLİĞİ VE KATI KURALLARI (System Instruction)
+    system_instruction = (
+        "Sen tarafsız, nesnel ve profesyonel bir haber derleyici ve analistsin. "
+        "Temel görevin, farklı kaynaklardan gelen haber transkriptlerini eksiksiz bir şekilde taramak ve yapılandırmaktır.\n\n"
+        "ÖNEMLİ KURALLAR:\n"
+        "1. HİÇBİR haberi atlama. Haber değeri taşıyan en ufak detay dahi listeye eklenmelidir.\n"
+        "2. Haberin özetini tamamen tarafsız ve nesnel bir dille yap. Kendi yorumunu, değerlendirmeni veya önyargını kesinlikle ekleme.\n"
+        "3. Yayıncıların yorumlarını, siyasi duruşlarını veya eleştirilerini yumuşatmadan, olduğu gibi aktar.\n"
+        "4. Bir haber birden fazla kanalda geçiyorsa, haberi tek bir başlık altında birleştir, ancak her yayıncının o habere bakış açısını ayrı ayrı listele.\n"
+        "5. Bir kanal bir habere değinmediyse, o kanalı ilgili haberin altına ekleme.\n"
+        "6. Yanıtına kesinlikle selamlama, kapanış veya nezaket cümlesi (örn. 'İşte raporunuz', 'Merhaba') ile başlama veya bitirme. Doğrudan raporu sun.\n"
+        "7. Çıktı, Discord'da yayınlanmaya uygun, okunabilir bir Markdown formatında olmalıdır."
+    )
+
+    # GÖREVİN KENDİSİ VE ÇIKTI FORMATI (Prompt)
+    prompt = f"""
+    Tarih: {current_date}
+
+    Aşağıdaki <TRANSKRİPTLER> etiketleri arasında yer alan verileri kullanarak istenen formatta raporu oluşturunuz.
+
+    <TRANSKRİPTLER>
+    {full_content}
+    </TRANSKRİPTLER>
+
+    Lütfen raporu eksiksiz olarak aşağıdaki yapıya sadık kalarak hazırlayınız:
+
+    **İncelenen Kaynaklar:**
+    (Verilerin içinden tespit ettiğiniz kanal isimlerini ve video başlıklarını burada madde imleriyle listeleyiniz.)
+
+    ---
+
+    (Tespit edilen her bir farklı haber konusu için aşağıdaki yapıyı tekrarlayınız:)
+
+    🔹 **[HABERİN KISA BAŞLIĞI]**
+    **Haber:** (Haberin tarafsız özeti. Kim, ne yaptı, nerede, ne zaman, sonucu ne?)
+    **Yayıncı Yorumları:**
+    * **[Yayıncı 1 Adı]:** (Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu)
+    * **[Yayıncı 2 Adı]:** (Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu)
+    """
+
+    print(promt)
+
+    response = client.models.generate_content(
+        model='gemini-3-flash-preview',
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            temperature=0.1,             # Yüksek nesnellik için düşük ısı
+            top_p=0.7,                   # Halüsinasyon riskini minimize etmek için
+            max_output_tokens=8192,      # Uzun listelerin kesilmemesi için maksimum sınır
+            thinking_config=types.ThinkingConfig(
+                thinking_level=types.ThinkingLevel.HIGH
+            )
+        )
+    )
+    return response.text
 #gemini-3-flash-preview
 #gemini-3-pro-preview
 def send_to_discord(report):
