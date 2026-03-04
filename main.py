@@ -95,7 +95,7 @@ def get_ai_report(full_content):
         )
     )
     raw_list = extraction_response.text
-
+    print(full_content)
     # ADIM 2: Ham listeyi Discord formatına çevir
     format_prompt = f"""
     Aşağıdaki haber listesini Discord'a uygun formatta düzenle.
