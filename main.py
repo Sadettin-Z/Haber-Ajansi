@@ -55,7 +55,7 @@ def transkript_cek(video_id):
             res = requests.get(
                 f"https://api.supadata.ai/v1/youtube/transcript?videoId={video_id}",
                 headers={"x-api-key": SUPADATA_API_KEY},
-                timeout=10
+                timeout=30
             ).json()
             if "content" in res:
                 return " ".join([t["text"] for t in res["content"]])
@@ -64,6 +64,7 @@ def transkript_cek(video_id):
                 time.sleep(10)
         except Exception as e:
             print(f"Deneme {attempt+1} başarısız: {type(e).__name__}")
+            time.sleep(3)  # timeout sonrası 3 saniye bekle
     
     return "(Transkript bulunamadı)"
 
