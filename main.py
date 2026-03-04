@@ -93,23 +93,23 @@ def get_ai_report(full_content):
 
     # GÖREVİN KENDİSİ VE ÇIKTI FORMATI (Prompt)
     prompt = f"""
-    Tarih: {current_date}
-
     Aşağıdaki <TRANSKRİPTLER> etiketleri arasında yer alan verileri kullanarak istenen formatta raporu oluşturunuz.
-
     <TRANSKRİPTLER>
     {full_content}
     </TRANSKRİPTLER>
-
-    Lütfen raporu eksiksiz olarak aşağıdaki yapıya sadık kalarak hazırlayınız:
-
+    
+    KRİTİK KURAL: Transkriptlerde geçen HİÇBİR haberi atlama. Her haber, ne kadar kısa geçilmiş olursa olsun rapora eklenmelidir. Raporu tamamlamadan bitirme.
+    
+    Raporu aşağıdaki yapıya sadık kalarak hazırlayınız:
+    
+    📅 **Tarih: {current_date}**
+    
     **İncelenen Kaynaklar:**
     (Verilerin içinden tespit ettiğiniz kanal isimlerini ve video başlıklarını burada madde imleriyle listeleyiniz.)
-
+    
     ---
-
+    
     (Tespit edilen her bir farklı haber konusu için aşağıdaki yapıyı tekrarlayınız:)
-
     🔹 **[HABERİN KISA BAŞLIĞI]**
     **Haber:** (Haberin tarafsız özeti. Kim, ne yaptı, nerede, ne zaman, sonucu ne?)
     **Yayıncı Yorumları:**
@@ -124,9 +124,9 @@ def get_ai_report(full_content):
         contents=prompt,
         config=types.GenerateContentConfig(
             system_instruction=system_instruction,
-            temperature=0.1,             # Yüksek nesnellik için düşük ısı
-            top_p=0.7,                   # Halüsinasyon riskini minimize etmek için
-            max_output_tokens=8192,      # Uzun listelerin kesilmemesi için maksimum sınır
+            temperature=0.4,             # Yüksek nesnellik için düşük ısı
+            top_p=0.9,                   # Halüsinasyon riskini minimize etmek için
+            max_output_tokens=16000,      # Uzun listelerin kesilmemesi için maksimum sınır
             thinking_config=types.ThinkingConfig(
                 thinking_level=types.ThinkingLevel.HIGH
             )
