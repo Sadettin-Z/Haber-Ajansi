@@ -15,6 +15,7 @@ jobs:
           python-version: '3.11'
 
       - run: pip install requests google-genai isodate
+      - run: pip install requests isodate anthropic
 
       - name: Raporu Calistir
         env:
@@ -22,4 +23,5 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           SUPADATA_API_KEY: ${{ secrets.SUPADATA_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python main.py
