@@ -4,7 +4,9 @@ import isodate
 from datetime import datetime, timedelta
 from google import genai
 import time
+import anthropic
 
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_URL = os.getenv("DISCORD_WEBHOOK_URL")
@@ -69,7 +71,7 @@ def transkript_cek(video_id):
     return "(Transkript bulunamadı)"
 
 def get_ai_report(full_content):
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     prompt = f"""GÖREV Sana birden fazla YouTube haber kanalının video transkriptlerini yükleyeceğim. Bu transkriptleri okuyarak içlerinde geçen tüm haberleri aşağıdaki formatta özetle.
 ÖNEMLİ KURALLAR
 * HİÇBİR haberi atlama. Haber değeri taşıyan her konuyu, ne kadar kısa geçilmiş olursa olsun, listeye ekle.
@@ -92,7 +94,16 @@ Yayıncı Yorumları:
 
 {full_content}"""
     print(prompt)
-    return client.models.generate_content(model='gemini-3-flash-preview', contents=prompt).text
+    message = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=64000,  # Sonnet 4.6 maksimumu
+        thinking={"type": "adaptive"},
+        output_config={"effort": "max"},  # uzun transkript için high
+        messages=[{"role": "user", "content": prompt}]
+    )
+    
+    # Sadece text bloklarını al, thinking bloklarını atla
+    return "".join(block.text for block in message.content if block.type == "text")
 #gemini-3-flash-preview
 #gemini-3-pro-preview
 def send_to_discord(report):
