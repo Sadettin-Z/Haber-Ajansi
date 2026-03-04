@@ -116,7 +116,7 @@ def get_ai_report(full_content):
     * **[Yayıncı 2 Adı]:** (Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu)
     """
 
-    print(promt)
+    print(prompt)
 
     response = client.models.generate_content(
         model='gemini-3-flash-preview',
