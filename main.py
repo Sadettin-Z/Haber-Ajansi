@@ -73,66 +73,74 @@ def transkript_cek(video_id):
 
 def get_ai_report(full_content):
     client = genai.Client(api_key=GEMINI_API_KEY)
-    
-    # Raporun başına eklenecek dinamik tarih bilgisi
     current_date = datetime.now().strftime("%d.%m.%Y")
-    
-    # MODELİN KİMLİĞİ VE KATI KURALLARI (System Instruction)
-    system_instruction = (
-        "Sen tarafsız, nesnel ve profesyonel bir haber derleyici ve analistsin. "
-        "Temel görevin, farklı kaynaklardan gelen haber transkriptlerini eksiksiz bir şekilde taramak ve yapılandırmaktır.\n\n"
-        "ÖNEMLİ KURALLAR:\n"
-        "1. HİÇBİR haberi atlama. Haber değeri taşıyan en ufak detay dahi listeye eklenmelidir.\n"
-        "2. Haberin özetini tamamen tarafsız ve nesnel bir dille yap. Kendi yorumunu, değerlendirmeni veya önyargını kesinlikle ekleme.\n"
-        "3. Yayıncıların yorumlarını, siyasi duruşlarını veya eleştirilerini yumuşatmadan, olduğu gibi aktar.\n"
-        "4. Bir haber birden fazla kanalda geçiyorsa, haberi tek bir başlık altında birleştir, ancak her yayıncının o habere bakış açısını ayrı ayrı listele.\n"
-        "5. Bir kanal bir habere değinmediyse, o kanalı ilgili haberin altına ekleme.\n"
-        "6. Yanıtına kesinlikle selamlama, kapanış veya nezaket cümlesi (örn. 'İşte raporunuz', 'Merhaba') ile başlama veya bitirme. Doğrudan raporu sun.\n"
-        "7. Çıktı, Discord'da yayınlanmaya uygun, okunabilir bir Markdown formatında olmalıdır."
-    )
 
-    # GÖREVİN KENDİSİ VE ÇIKTI FORMATI (Prompt)
-    prompt = f"""
-    Aşağıdaki <TRANSKRİPTLER> etiketleri arasında yer alan verileri kullanarak istenen formatta raporu oluşturunuz.
+    # ADIM 1: Transkriptlerdeki tüm haberleri ham olarak çıkar
+    extraction_prompt = f"""
+    Aşağıdaki transkriptleri okuyarak içinde geçen TÜM konuları ve olayları listele.
+    Hiçbir detayı atlama. Her konuyu tek satırda şu formatta yaz:
+    [KANAL ADI] | [KONU BAŞLIĞI] | [1-2 cümle özet]
+    
     <TRANSKRİPTLER>
     {full_content}
     </TRANSKRİPTLER>
+    """
+
+    extraction_response = client.models.generate_content(
+        model='gemini-3-flash-preview',
+        contents=extraction_prompt,
+        config=types.GenerateContentConfig(
+            max_output_tokens=16000,
+            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.HIGH)
+        )
+    )
+    raw_list = extraction_response.text
+
+    # ADIM 2: Ham listeyi Discord formatına çevir
+    format_prompt = f"""
+    Aşağıdaki haber listesini Discord'a uygun formatta düzenle.
+    Aynı konuyu ele alan haberleri tek başlık altında birleştir, her yayıncının yorumunu ayrı yaz.
+    HİÇBİR haberi atlama.
     
-    KRİTİK KURAL: Transkriptlerde geçen HİÇBİR haberi atlama. Her haber, ne kadar kısa geçilmiş olursa olsun rapora eklenmelidir. Raporu tamamlamadan bitirme.
+    {raw_list}
     
     Raporu aşağıdaki yapıya sadık kalarak hazırlayınız:
     
     📅 **Tarih: {current_date}**
     
     **İncelenen Kaynaklar:**
-    (Verilerin içinden tespit ettiğiniz kanal isimlerini ve video başlıklarını burada madde imleriyle listeleyiniz.)
+    (Kanal isimlerini ve video başlıklarını madde imleriyle listele.)
     
     ---
     
-    (Tespit edilen her bir farklı haber konusu için aşağıdaki yapıyı tekrarlayınız:)
     🔹 **[HABERİN KISA BAŞLIĞI]**
-    **Haber:** (Haberin tarafsız özeti. Kim, ne yaptı, nerede, ne zaman, sonucu ne?)
+    **Haber:** (Tarafsız özet.)
     **Yayıncı Yorumları:**
-    * **[Yayıncı 1 Adı]:** (Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu)
-    * **[Yayıncı 2 Adı]:** (Bu yayıncının habere yaklaşımı, vurguladığı noktalar, yorumu)
+    * **[Yayıncı Adı]:** (Yaklaşımı ve vurguladığı noktalar)
     """
 
-    print(prompt)
-
-    response = client.models.generate_content(
+    format_response = client.models.generate_content(
         model='gemini-3-flash-preview',
-        contents=prompt,
+        contents=format_prompt,
         config=types.GenerateContentConfig(
-            system_instruction=system_instruction,
-            temperature=0.4,             # Yüksek nesnellik için düşük ısı
-            top_p=0.9,                   # Halüsinasyon riskini minimize etmek için
-            max_output_tokens=16000,      # Uzun listelerin kesilmemesi için maksimum sınır
-            thinking_config=types.ThinkingConfig(
-                thinking_level=types.ThinkingLevel.HIGH
-            )
+            system_instruction=(
+                "Sen tarafsız, nesnel ve profesyonel bir haber derleyici ve analistsin. "
+                "Temel görevin, farklı kaynaklardan gelen haber transkriptlerini eksiksiz bir şekilde taramak ve yapılandırmaktır.\n\n"
+                "ÖNEMLİ KURALLAR:\n"
+                "1. HİÇBİR haberi atlama. Haber değeri taşıyan en ufak detay dahi listeye eklenmelidir.\n"
+                "2. Haberin özetini tamamen tarafsız ve nesnel bir dille yaz.\n"
+                "3. Yayıncıların yorumlarını yumuşatmadan olduğu gibi aktar.\n"
+                "4. Bir haber birden fazla kanalda geçiyorsa tek başlık altında birleştir.\n"
+                "5. Selamlama veya kapanış cümlesi ekleme.\n"
+                "6. Discord'a uygun Markdown formatı kullan."
+            ),
+            temperature=0.4,
+            top_p=0.9,
+            max_output_tokens=64000,
+            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.HIGH)
         )
     )
-    return response.text
+    return format_response.text
 #gemini-3-flash-preview
 #gemini-3-pro-preview
 def send_to_discord(report):
