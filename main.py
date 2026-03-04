@@ -67,7 +67,7 @@ def transkript_cek(video_id):
     return "(Transkript bulunamadı)"
 
 def get_news_index(full_content):
-    """1. AŞAMA: Transkriptteki tüm haberleri tespit edip liste oluşturur."""
+    """1. AŞAMA: Haberleri tespit et ve birbiriyle ilişkili konuları tek başlık altında birleştir."""
     client = genai.Client(api_key=GEMINI_API_KEY)
 
     prompt = f"""
@@ -76,8 +76,9 @@ def get_news_index(full_content):
     {full_content}
     </TRANSKRİPTLER>
 
-    Metindeki her bir farklı haber konusunu ve o konuyu sunan yayıncıları aşağıdaki formatta listeleyin.
-    Her haber için tek bir satır kullanın. Başka hiçbir metin eklemeyin.
+    Metindeki tüm haber konularını tespit edin. Birbiriyle doğrudan ilişkili konuları tek bir başlık altında birleştirin.
+    Her başlık için o habere değinen yayıncıları da belirtin.
+    Hiçbir haberi atlama. Sadece aşağıdaki formatta liste döndür, başka hiçbir metin ekleme.
 
     Format:
     Haber Başlığı | Yayıncı 1, Yayıncı 2
@@ -89,8 +90,9 @@ def get_news_index(full_content):
         config=types.GenerateContentConfig(
             system_instruction=(
                 "Sen profesyonel bir haber analistisin. Görevin transkriptlerdeki "
-                "tüm haber konularını ve yayıncıları tespit etmektir. "
-                "Hiçbir haberi atlama. Sadece istenen formattaki listeyi döndür, yorum veya selamlama ekleme."
+                "tüm haber konularını tespit etmek ve birbiriyle ilişkili olanları "
+                "tek başlık altında birleştirmektir. Hiçbir haberi atlama. "
+                "Sadece istenen formattaki listeyi döndür, yorum veya selamlama ekleme."
             ),
             temperature=0.1,
             max_output_tokens=4096,
@@ -99,30 +101,52 @@ def get_news_index(full_content):
 
     lines = response.text.strip().split('\n')
     topics = [line.strip() for line in lines if '|' in line]
+    print(f"Tespit edilen haber sayısı: {len(topics)}")
     return topics
 
-def analyze_single_topic(full_content, topic_line):
-    """2. AŞAMA: Tek bir habere odaklanarak detaylı analiz yapar."""
+def get_guided_report(full_content, topics, videos):
+    """2. AŞAMA: İndeks listesi ve transkriptlerle tek seferde rehberli rapor oluştur."""
     client = genai.Client(api_key=GEMINI_API_KEY)
-    topic_title = topic_line.split('|')[0].strip()
+    current_date = datetime.now().strftime("%d.%m.%Y")
+
+    # Başlık listesini numaralandırılmış formata çevir
+    numbered_topics = "\n".join([f"{i+1}. {t.split('|')[0].strip()}" for i, t in enumerate(topics)])
+
+    # Kaynak listesini oluştur
+    sources = "\n".join([f"- [{v['name']}] {v['title']}" for v in videos])
 
     prompt = f"""
-    Aşağıdaki <TRANSKRİPTLER> etiketleri arasındaki metni kullanarak SADECE belirtilen hedefe odaklanın.
-
-    <HEDEF_HABER>
-    {topic_title}
-    </HEDEF_HABER>
-
+    Aşağıdaki <İNDEKS> listesindeki haberleri sırasıyla işleyerek rapor oluştur.
+    
+    <İNDEKS>
+    {numbered_topics}
+    </İNDEKS>
+    
     <TRANSKRİPTLER>
     {full_content}
     </TRANSKRİPTLER>
-
-    Transkriptleri tarayın ve SADECE hedef haber ile ilgili kısımları analiz ederek aşağıdaki yapıda rapor oluşturun:
-
-    🔹 **{topic_title}**
-    **Haber:** (Haberin tarafsız özeti. Kim, ne yaptı, nerede, ne zaman, sonucu ne?)
+    
+    KATİ KURALLAR:
+    1. İndeksteki her başlığı sırasıyla işle, hiçbirini atlama.
+    2. Bir başlıkta yazdığın bilgiyi başka bir başlıkta kesinlikle tekrar etme.
+    3. Her haberi tarafsız ve nesnel özetle, kendi yorumunu ekleme.
+    4. Yayıncı yorumlarını yumuşatmadan olduğu gibi aktar.
+    5. Selamlama veya kapanış cümlesi ekleme, doğrudan rapora başla.
+    
+    Raporun tam yapısı şu şekilde olmalıdır:
+    
+    📅 **Tarih: {current_date}**
+    
+    **İncelenen Kaynaklar:**
+    {sources}
+    
+    ---
+    
+    (İndeksteki her başlık için aşağıdaki yapıyı tekrarla:)
+    🔹 **[HABERİN BAŞLIĞI]**
+    **Haber:** (Tarafsız özet. Kim, ne yaptı, nerede, ne zaman, sonucu ne?)
     **Yayıncı Yorumları:**
-    * **[Yayıncı Adı]:** (Bu yayıncının habere yaklaşımı, vurguladığı noktalar)
+    * **[Yayıncı Adı]:** (Yaklaşımı ve vurguladığı noktalar)
     """
 
     response = client.models.generate_content(
@@ -131,54 +155,31 @@ def analyze_single_topic(full_content, topic_line):
         config=types.GenerateContentConfig(
             system_instruction=(
                 "Sen tarafsız, nesnel ve profesyonel bir haber derleyici ve analistsin. "
-                "Haberi tamamen tarafsız bir dille özetle. Kendi yorumunu kesinlikle ekleme. "
-                "Yayıncıların yorumlarını, siyasi duruşlarını yumuşatmadan aktar. "
-                "Yanıtına selamlama veya kapanış ekleme."
+                "Temel görevin verilen indeks listesindeki her haberi sırasıyla işlemek, "
+                "hiçbirini atlamamak ve aynı bilgiyi birden fazla başlık altında tekrar etmemektir. "
+                "Yayıncıların yorumlarını yumuşatmadan olduğu gibi aktar."
             ),
             temperature=0.4,
             top_p=0.9,
-            max_output_tokens=4096,
+            max_output_tokens=64000,
             thinking_config=types.ThinkingConfig(
                 thinking_level=types.ThinkingLevel.HIGH
             )
         )
     )
+    print(full_content)
     return response.text.strip()
 
 def get_ai_report(videos, full_content):
-    """3. AŞAMA: İndeksi alır, döngüyü çalıştırır ve raporu birleştirir."""
+    """Ana fonksiyon: İndeksleme ve rehberli sentezi sırasıyla çalıştırır."""
     print("1. Aşama başlatılıyor: Haberler indeksleniyor...")
     topics = get_news_index(full_content)
 
     if not topics:
         return "Haber bulunamadı veya transkript okunamadı."
 
-    print(f"Tespit edilen haber sayısı: {len(topics)}")
-
-    current_date = datetime.now().strftime("%d.%m.%Y")
-
-    # Rapor başlığı — kaynaklar videos listesinden alınıyor
-    final_report = f"📅 **Tarih: {current_date}**\n\n"
-    final_report += "**İncelenen Kaynaklar:**\n"
-    for v in videos:
-        final_report += f"- [{v['name']}] {v['title']}\n"
-    final_report += "\n---\n\n"
-
-    # Her haberi ayrı ayrı analiz et
-    for i, topic_line in enumerate(topics, 1):
-        topic_title = topic_line.split('|')[0].strip()
-        print(f"2. Aşama ({i}/{len(topics)}): '{topic_title}' analiz ediliyor...")
-
-        try:
-            analysis = analyze_single_topic(full_content, topic_line)
-            final_report += analysis + "\n\n---\n\n"
-        except Exception as e:
-            print(f"HATA: '{topic_title}' atlandı: {e}")
-            final_report += f"🔹 **{topic_title}**\n**Haber:** (Analiz sırasında hata oluştu.)\n\n---\n\n"
-
-        time.sleep(4)  # rate limit koruması
-
-    return final_report.strip()
+    print("2. Aşama başlatılıyor: Rehberli rapor oluşturuluyor...")
+    return get_guided_report(full_content, topics, videos)
 
 def send_to_discord(report):
     while report:
