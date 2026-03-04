@@ -1,13 +1,11 @@
 import os
+import time
 import requests
 import isodate
 from datetime import datetime, timedelta
 from google import genai
-import time
-import anthropic
 from google.genai import types
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_URL = os.getenv("DISCORD_WEBHOOK_URL")
@@ -26,7 +24,6 @@ def is_short(video_id):
         f"https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id={video_id}&key={YOUTUBE_API_KEY}"
     ).json()
     try:
-        import isodate
         duration = res["items"][0]["contentDetails"]["duration"]
         seconds = isodate.parse_duration(duration).total_seconds()
         return seconds <= 180
@@ -51,7 +48,6 @@ def get_latest_video_list():
             print(f"HATA: {name}: {e}")
     return found_videos
 
-
 def transkript_cek(video_id):
     for attempt in range(3):
         try:
@@ -67,82 +63,123 @@ def transkript_cek(video_id):
                 time.sleep(10)
         except Exception as e:
             print(f"Deneme {attempt+1} başarısız: {type(e).__name__}")
-            time.sleep(3)  # timeout sonrası 3 saniye bekle
-    
+            time.sleep(3)
     return "(Transkript bulunamadı)"
 
-def get_ai_report(full_content):
+def get_news_index(full_content):
+    """1. AŞAMA: Transkriptteki tüm haberleri tespit edip liste oluşturur."""
     client = genai.Client(api_key=GEMINI_API_KEY)
-    current_date = datetime.now().strftime("%d.%m.%Y")
 
-    # ADIM 1: Transkriptlerdeki tüm haberleri ham olarak çıkar
-    extraction_prompt = f"""
-    Aşağıdaki transkriptleri okuyarak içinde geçen TÜM konuları ve olayları listele.
-    Hiçbir detayı atlama. Her konuyu tek satırda şu formatta yaz:
-    [KANAL ADI] | [KONU BAŞLIĞI] | [1-2 cümle özet]
-    
+    prompt = f"""
+    Aşağıdaki <TRANSKRİPTLER> etiketleri arasındaki metni inceleyin.
     <TRANSKRİPTLER>
     {full_content}
     </TRANSKRİPTLER>
+
+    Metindeki her bir farklı haber konusunu ve o konuyu sunan yayıncıları aşağıdaki formatta listeleyin.
+    Her haber için tek bir satır kullanın. Başka hiçbir metin eklemeyin.
+
+    Format:
+    Haber Başlığı | Yayıncı 1, Yayıncı 2
     """
 
-    extraction_response = client.models.generate_content(
+    response = client.models.generate_content(
         model='gemini-3-flash-preview',
-        contents=extraction_prompt,
+        contents=prompt,
         config=types.GenerateContentConfig(
-            max_output_tokens=16000,
-            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.HIGH)
+            system_instruction=(
+                "Sen profesyonel bir haber analistisin. Görevin transkriptlerdeki "
+                "tüm haber konularını ve yayıncıları tespit etmektir. "
+                "Hiçbir haberi atlama. Sadece istenen formattaki listeyi döndür, yorum veya selamlama ekleme."
+            ),
+            temperature=0.1,
+            max_output_tokens=4096,
         )
     )
-    raw_list = extraction_response.text
-    print(full_content)
-    # ADIM 2: Ham listeyi Discord formatına çevir
-    format_prompt = f"""
-    Aşağıdaki haber listesini Discord'a uygun formatta düzenle.
-    Aynı konuyu ele alan haberleri tek başlık altında birleştir, her yayıncının yorumunu ayrı yaz.
-    HİÇBİR haberi atlama.
-    
-    {raw_list}
-    
-    Raporu aşağıdaki yapıya sadık kalarak hazırlayınız:
-    
-    📅 **Tarih: {current_date}**
-    
-    **İncelenen Kaynaklar:**
-    (Kanal isimlerini ve video başlıklarını madde imleriyle listele.)
-    
-    ---
-    
-    🔹 **[HABERİN KISA BAŞLIĞI]**
-    **Haber:** (Tarafsız özet.)
+
+    lines = response.text.strip().split('\n')
+    topics = [line.strip() for line in lines if '|' in line]
+    return topics
+
+def analyze_single_topic(full_content, topic_line):
+    """2. AŞAMA: Tek bir habere odaklanarak detaylı analiz yapar."""
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    topic_title = topic_line.split('|')[0].strip()
+
+    prompt = f"""
+    Aşağıdaki <TRANSKRİPTLER> etiketleri arasındaki metni kullanarak SADECE belirtilen hedefe odaklanın.
+
+    <HEDEF_HABER>
+    {topic_title}
+    </HEDEF_HABER>
+
+    <TRANSKRİPTLER>
+    {full_content}
+    </TRANSKRİPTLER>
+
+    Transkriptleri tarayın ve SADECE hedef haber ile ilgili kısımları analiz ederek aşağıdaki yapıda rapor oluşturun:
+
+    🔹 **{topic_title}**
+    **Haber:** (Haberin tarafsız özeti. Kim, ne yaptı, nerede, ne zaman, sonucu ne?)
     **Yayıncı Yorumları:**
-    * **[Yayıncı Adı]:** (Yaklaşımı ve vurguladığı noktalar)
+    * **[Yayıncı Adı]:** (Bu yayıncının habere yaklaşımı, vurguladığı noktalar)
     """
 
-    format_response = client.models.generate_content(
+    response = client.models.generate_content(
         model='gemini-3-flash-preview',
-        contents=format_prompt,
+        contents=prompt,
         config=types.GenerateContentConfig(
             system_instruction=(
                 "Sen tarafsız, nesnel ve profesyonel bir haber derleyici ve analistsin. "
-                "Temel görevin, farklı kaynaklardan gelen haber transkriptlerini eksiksiz bir şekilde taramak ve yapılandırmaktır.\n\n"
-                "ÖNEMLİ KURALLAR:\n"
-                "1. HİÇBİR haberi atlama. Haber değeri taşıyan en ufak detay dahi listeye eklenmelidir.\n"
-                "2. Haberin özetini tamamen tarafsız ve nesnel bir dille yaz.\n"
-                "3. Yayıncıların yorumlarını yumuşatmadan olduğu gibi aktar.\n"
-                "4. Bir haber birden fazla kanalda geçiyorsa tek başlık altında birleştir.\n"
-                "5. Selamlama veya kapanış cümlesi ekleme.\n"
-                "6. Discord'a uygun Markdown formatı kullan."
+                "Haberi tamamen tarafsız bir dille özetle. Kendi yorumunu kesinlikle ekleme. "
+                "Yayıncıların yorumlarını, siyasi duruşlarını yumuşatmadan aktar. "
+                "Yanıtına selamlama veya kapanış ekleme."
             ),
             temperature=0.4,
             top_p=0.9,
-            max_output_tokens=64000,
-            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.HIGH)
+            max_output_tokens=4096,
+            thinking_config=types.ThinkingConfig(
+                thinking_level=types.ThinkingLevel.HIGH
+            )
         )
     )
-    return format_response.text
-#gemini-3-flash-preview
-#gemini-3-pro-preview
+    return response.text.strip()
+
+def get_ai_report(videos, full_content):
+    """3. AŞAMA: İndeksi alır, döngüyü çalıştırır ve raporu birleştirir."""
+    print("1. Aşama başlatılıyor: Haberler indeksleniyor...")
+    topics = get_news_index(full_content)
+
+    if not topics:
+        return "Haber bulunamadı veya transkript okunamadı."
+
+    print(f"Tespit edilen haber sayısı: {len(topics)}")
+
+    current_date = datetime.now().strftime("%d.%m.%Y")
+
+    # Rapor başlığı — kaynaklar videos listesinden alınıyor
+    final_report = f"📅 **Tarih: {current_date}**\n\n"
+    final_report += "**İncelenen Kaynaklar:**\n"
+    for v in videos:
+        final_report += f"- [{v['name']}] {v['title']}\n"
+    final_report += "\n---\n\n"
+
+    # Her haberi ayrı ayrı analiz et
+    for i, topic_line in enumerate(topics, 1):
+        topic_title = topic_line.split('|')[0].strip()
+        print(f"2. Aşama ({i}/{len(topics)}): '{topic_title}' analiz ediliyor...")
+
+        try:
+            analysis = analyze_single_topic(full_content, topic_line)
+            final_report += analysis + "\n\n---\n\n"
+        except Exception as e:
+            print(f"HATA: '{topic_title}' atlandı: {e}")
+            final_report += f"🔹 **{topic_title}**\n**Haber:** (Analiz sırasında hata oluştu.)\n\n---\n\n"
+
+        time.sleep(4)  # rate limit koruması
+
+    return final_report.strip()
+
 def send_to_discord(report):
     while report:
         if len(report) <= 1900:
@@ -157,6 +194,7 @@ def send_to_discord(report):
             chunk = report[:split_at]
             report = report[split_at:].lstrip()
         requests.post(DISCORD_URL, json={"content": chunk})
+
 if __name__ == "__main__":
     videos = get_latest_video_list()
     if not videos:
@@ -165,10 +203,10 @@ if __name__ == "__main__":
         print(f"Bulunan videolar ({len(videos)} adet):")
         for v in videos:
             print(f"  - [{v['name']}] {v['title']}")
-        
+
         content_for_ai = ""
         for v in videos:
             content_for_ai += f"Kanal: {v['name']}\nBaşlık: {v['title']}\nMetin: {transkript_cek(v['video_id'])}\n\n"
-        
-        send_to_discord(get_ai_report(content_for_ai))
+
+        send_to_discord(get_ai_report(videos, content_for_ai))
         print("İşlem tamamlandı, rapor Discord'a uçtu!")
