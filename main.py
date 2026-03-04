@@ -94,16 +94,15 @@ Yayıncı Yorumları:
 
 {full_content}"""
     print(prompt)
-    message = client.messages.create(
+    with client.messages.stream(
         model="claude-sonnet-4-6",
-        max_tokens=64000,  # Sonnet 4.6 maksimumu
-        thinking={"type": "adaptive"},
-        output_config={"effort": "max"},  # uzun transkript için high
+        max_tokens=64000,
         messages=[{"role": "user", "content": prompt}]
-    )
+    ) as stream:
+        for text in stream.text_stream:
+            full_response += text
     
-    # Sadece text bloklarını al, thinking bloklarını atla
-    return "".join(block.text for block in message.content if block.type == "text")
+    return full_response
 #gemini-3-flash-preview
 #gemini-3-pro-preview
 def send_to_discord(report):
