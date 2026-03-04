@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from google import genai
 import time
 import anthropic
+from google.genai import types
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
