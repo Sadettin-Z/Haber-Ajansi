@@ -93,7 +93,7 @@ def get_news_index(full_content):
                 "tüm haber konularını tespit etmek ve birbiriyle ilişkili olanları "
                 "tek başlık altında birleştirmektir. Hiçbir haberi atlama. "
                 "Sadece istenen formattaki listeyi döndür, yorum veya selamlama ekleme."
-                "Yorumu yapan kişi kanala konuk alının bir kişi ise isminin yanında konuk olduğu kanal ismini belirt. "Konuk ismi (Kanal ismi)" formatında.
+                "Yorumu yapan kişi kanala konuk alının bir kişi ise isminin yanında konuk olduğu kanal ismini belirt. 'Konuk ismi (Kanal ismi)' formatında.
             ),
             temperature=0.1,
             max_output_tokens=4096,
@@ -133,7 +133,7 @@ def get_guided_report(full_content, topics, videos):
     3. Her haberi tarafsız ve nesnel özetle, kendi yorumunu ekleme.
     4. Yayıncı yorumlarını yumuşatmadan olduğu gibi aktar.
     5. Selamlama veya kapanış cümlesi ekleme, doğrudan rapora başla.
-    6. Transkripti bulunamayan bir video var ise rapor başında "(videonun adı) transkripti bulunamadı" şeklinde belirt.
+    6. Transkripti bulunamayan bir video var ise rapor başında '(videonun adı) transkripti bulunamadı' şeklinde belirt.
     
     Raporun tam yapısı şu şekilde olmalıdır:
     
