@@ -76,9 +76,9 @@ def get_news_index(full_content):
     {full_content}
     </TRANSKRİPTLER>
 
-    Metindeki tüm haber konularını tespit edin. Birbiriyle doğrudan ilişkili konuları tek bir başlık altında birleştirin.
-    Her başlık için o habere değinen yayıncıları da belirtin.
-    Hiçbir haberi atlama. Sadece aşağıdaki formatta liste döndür, başka hiçbir metin ekleme.
+    Metindeki tüm konuları ve alt konuları tespit edin.
+    İlişkili konuları BİRLEŞTİRME — her farklı konu ayrı bir başlık olsun.
+    Bir yayıncı kaç farklı konuyu ele aldıysa o kadar ayrı satır yaz.
 
     Format:
     Haber Başlığı | Yayıncı 1, Yayıncı 2
