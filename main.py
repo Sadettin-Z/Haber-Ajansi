@@ -129,6 +129,9 @@ Her başlık için şu yapıyı kullan:
         )
     )
 
+    if not response.text:
+    return f"⚠️ [{video['name']}] \"{video['title']}\" — AI yanıt vermedi."
+
     return response.text.strip()
 
 def combine_reports(individual_reports, videos):
