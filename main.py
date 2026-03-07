@@ -109,31 +109,34 @@ Her başlık için şu yapıyı kullan:
 * **[Yayıncı Adı]:** (Yaklaşımı, vurguladığı noktalar, kullandığı özel ifadeler)
 """
 
-    response = client.models.generate_content(
-        model='gemini-3-flash-preview',
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=(
-                "Sen tarafsız, nesnel ve profesyonel bir Türkçe haber derleyici ve analistsin. "
-                "Temel görevin verilen transkriptteki tüm haber konularını ve alt konuları eksiksiz tespit etmek, "
-                "hiçbir detayı, ismi, rakamı veya analizi atlamadan raporlamaktır. "
-                "Yayıncıların yorumlarını yumuşatmadan olduğu gibi aktar. "
-                "Konuk isimlerini 'Kanal Adı (Konuk: Kişi Adı)' formatında belirt."
-            ),
-            temperature=0.3,
-            top_p=0.9,
-            max_output_tokens=16000,
-            thinking_config=types.ThinkingConfig(
-                thinking_level=types.ThinkingLevel.HIGH
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model='gemini-3-flash-preview',
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=(
+                        "Sen tarafsız, nesnel ve profesyonel bir Türkçe haber derleyici ve analistsin. "
+                        "Temel görevin verilen transkriptteki tüm haber konularını ve alt konuları eksiksiz tespit etmek, "
+                        "hiçbir detayı, ismi, rakamı veya analizi atlamadan raporlamaktır. "
+                        "Yayıncıların yorumlarını yumuşatmadan olduğu gibi aktar. "
+                        "Konuk isimlerini 'Kanal Adı (Konuk: Kişi Adı)' formatında belirt."
+                    ),
+                    temperature=0.3,
+                    top_p=0.9,
+                    max_output_tokens=16000,
+                    thinking_config=types.ThinkingConfig(
+                        thinking_level=types.ThinkingLevel.HIGH
+                    )
+                )
             )
-        )
-    )
-
-    if not response.text:
-        return f"⚠️ [{video['name']}] \"{video['title']}\" — AI yanıt vermedi."
-
-    return response.text.strip()
-
+            if response.text:
+                return response.text.strip()
+        except Exception as e:
+            wait = (attempt + 1) * 30
+            print(f"API hatası (deneme {attempt+1}): {e} — {wait} saniye bekleniyor...")
+            time.sleep(wait)
+    return f"⚠️ [{video['name']}] \"{video['title']}\" — AI yanıt vermedi."
 def combine_reports(individual_reports, videos):
     """Tüm bireysel raporları tek bir final rapora birleştir."""
     client = genai.Client(api_key=GEMINI_API_KEY)
