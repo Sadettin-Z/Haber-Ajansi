@@ -115,14 +115,14 @@ KATI KURALLAR VE YANILSAMA FİLTRELERİ (BUNLARA KESİNLİKLE DİKKAT ET):
                 )
             )
         )
-        import json
-        karar = json.loads(response.text.strip())
-        print(f"  Format kontrolü [{video['name']}]: uygun={karar['format_uygun_mu']}, gerekçe={karar['kisa_gerekce']}")
-        return karar["format_uygun_mu"], transkript
+        satirlar = response.text.strip().split("\n")
+        karar = "UYGUN" in satirlar[0].upper()
+        gerekce = satirlar[1] if len(satirlar) > 1 else ""
+        print(f"  Format kontrolü [{video['name']}]: {'✓' if karar else '✗'} — {gerekce}")
+        return karar, transkript
     except Exception as e:
         print(f"  Format kontrolü hatası: {e}")
         return True, transkript
-
 
 def analyze_single_video(video, transkript=None):
     """Tek bir videoyu analiz et ve rapor döndür."""
@@ -232,8 +232,11 @@ Raporun başına şunu ekle:
                     )
                 )
             )
+       
             if response.text:
                 return response.text.strip()
+            else:
+                print(f"Birleştirme deneme {attempt+1}: response.text boş geldi.")
         except Exception as e:
             wait = (attempt + 1) * 30
             print(f"Birleştirme API hatası (deneme {attempt+1}): {e} — {wait} saniye bekleniyor...")
