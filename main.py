@@ -94,10 +94,15 @@ KATI KURALLAR VE YANILSAMA FİLTRELERİ (BUNLARA KESİNLİKLE DİKKAT ET):
 1. ŞEMSİYE KONU KURALI: Eğer yayıncı farklı ülkelerden, farklı isimlerden veya farklı alt olaylardan bahsediyorsa AMA bunların hepsi tek bir büyük olaya bağlanıyorsa, bu "TEK KONUNUN alt başlıklarıdır". Bu tür videolar UYGUN DEĞİLDİR.
 2. SOHBET VE SPONSOR KURALI: Sponsorlu reklamlar, özel gün kutlamaları, selamlama ritüelleri veya izleyiciyle yapılan kısa sohbetler KESİNLİKLE ayrı bir haber konusu sayılamaz.
 3. AĞIRLIK KURALI: Videonun %80'i tek bir konuya ayrılmışsa, aralarda 1-2 dakikalık başka ufak haberlere değinilmiş olması o videoyu bülten yapmaz. Bu videolar da UYGUN DEĞİLDİR.
-4. Asla selamlama veya kapanış metni yazma. Sadece aşağıdaki JSON formatını ver. Markdown kullanma.
+4. Asla selamlama veya kapanış metni yazma. Sadece aşağıdaki formatta yanıt ver.
 
 ÇIKTI FORMATI:
-{{"format_uygun_mu": true, "kisa_gerekce": "gerekce buraya"}}
+Satır 1 (sadece bu iki kelimeden biri): UYGUN veya UYGUN_DEGIL
+Satır 2: gerekçen
+
+Örnek:
+UYGUN
+Video birden fazla bağımsız haber konusunu ele almaktadır.
 
 <TRANSKRİPT>
 {transkript}
@@ -115,16 +120,17 @@ KATI KURALLAR VE YANILSAMA FİLTRELERİ (BUNLARA KESİNLİKLE DİKKAT ET):
                 )
             )
         )
-        import json
-        raw = response.text.strip().replace("```json", "").replace("```", "").strip()
+        raw = response.text.strip()
         print(f"  Ham yanıt [{video['name']}]: {raw}")
-        karar = json.loads(raw)
-        print(f"  Format kontrolü [{video['name']}]: {'✓' if karar['format_uygun_mu'] else '✗'} — {karar['kisa_gerekce']}")
-        return karar["format_uygun_mu"], transkript
+        satirlar = raw.split("\n")
+        karar = satirlar[0].strip().upper() == "UYGUN"
+        gerekce = satirlar[1].strip() if len(satirlar) > 1 else ""
+        print(f"  Format kontrolü [{video['name']}]: {'✓' if karar else '✗'} — {gerekce}")
+        return karar, transkript
     except Exception as e:
         print(f"  Format kontrolü hatası: {e}")
         return True, transkript
-
+        
 def analyze_single_video(video, transkript=None):
     """Tek bir videoyu analiz et ve rapor döndür."""
     client = genai.Client(api_key=GEMINI_API_KEY)
