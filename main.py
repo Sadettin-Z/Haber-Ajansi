@@ -90,19 +90,19 @@ BAĞLAM VE KATEGORİLER:
 Senin aradığın format "Kısa Haber ve Yorum" formatıdır (Haber bülteni mantığı).
 1. UYGUN FORMAT (Kısa Haber ve Yorum): Yayıncı, video boyunca birbirinden bağımsız birden fazla farklı haber başlığına değinir (Örn: Önce yerel ekonomiden bahseder, biter; sonra Avrupa'daki bir seçime geçer, biter; sonra bir magazin/asayiş olayına geçer).
 2. UYGUN OLMAYAN FORMAT (Tek Konu / Derinlemesine Analiz): Videonun tamamı veya çok büyük bir kısmı tek bir ana olay üzerine kuruludur.
-
 KATI KURALLAR VE YANILSAMA FİLTRELERİ (BUNLARA KESİNLİKLE DİKKAT ET):
-1. ŞEMSİYE KONU KURALI: Eğer yayıncı farklı ülkelerden, farklı isimlerden veya farklı alt olaylardan bahsediyorsa AMA bunların hepsi tek bir büyük olaya (örneğin bir savaşa, spesifik bir seçime veya bir krize) bağlanıyorsa, bu "farklı konu" değil, "TEK KONUNUN alt başlıklarıdır". Bu tür videolar UYGUN DEĞİLDİR.
-2. SOHBET VE SPONSOR KURALI: Videonun başındaki veya sonundaki sponsorlu reklamlar , özel gün kutlamaları, selamlama ritüelleri veya izleyiciyle yapılan kısa sohbetler KESİNLİKLE ayrı bir haber konusu olarak sayılamaz.
+1. ŞEMSİYE KONU KURALI: Eğer yayıncı farklı ülkelerden, farklı isimlerden veya farklı alt olaylardan bahsediyorsa AMA bunların hepsi tek bir büyük olaya bağlanıyorsa, bu "TEK KONUNUN alt başlıklarıdır". Bu tür videolar UYGUN DEĞİLDİR.
+2. SOHBET VE SPONSOR KURALI: Sponsorlu reklamlar, özel gün kutlamaları, selamlama ritüelleri veya izleyiciyle yapılan kısa sohbetler KESİNLİKLE ayrı bir haber konusu sayılamaz.
 3. AĞIRLIK KURALI: Videonun %80'i tek bir konuya ayrılmışsa, aralarda 1-2 dakikalık başka ufak haberlere değinilmiş olması o videoyu bülten yapmaz. Bu videolar da UYGUN DEĞİLDİR.
-4. Asla selamlama veya kapanış metni yazma. Sadece aşağıdaki JSON formatını ver.
+4. Asla selamlama veya kapanış metni yazma. Sadece aşağıdaki JSON formatını ver. Markdown kullanma.
+
 ÇIKTI FORMATI:
 {{"format_uygun_mu": true, "kisa_gerekce": "gerekce buraya"}}
+
 <TRANSKRİPT>
 {transkript}
 </TRANSKRİPT>
 """
-
     try:
         response = client.models.generate_content(
             model='gemini-3-flash-preview',
@@ -115,11 +115,12 @@ KATI KURALLAR VE YANILSAMA FİLTRELERİ (BUNLARA KESİNLİKLE DİKKAT ET):
                 )
             )
         )
-        satirlar = response.text.strip().split("\n")
-        karar = "UYGUN" in satirlar[0].upper()
-        gerekce = satirlar[1] if len(satirlar) > 1 else ""
-        print(f"  Format kontrolü [{video['name']}]: {'✓' if karar else '✗'} — {gerekce}")
-        return karar, transkript
+        import json
+        raw = response.text.strip().replace("```json", "").replace("```", "").strip()
+        print(f"  Ham yanıt [{video['name']}]: {raw}")
+        karar = json.loads(raw)
+        print(f"  Format kontrolü [{video['name']}]: {'✓' if karar['format_uygun_mu'] else '✗'} — {karar['kisa_gerekce']}")
+        return karar["format_uygun_mu"], transkript
     except Exception as e:
         print(f"  Format kontrolü hatası: {e}")
         return True, transkript
