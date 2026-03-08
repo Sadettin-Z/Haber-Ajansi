@@ -97,10 +97,7 @@ KATI KURALLAR VE YANILSAMA FİLTRELERİ (BUNLARA KESİNLİKLE DİKKAT ET):
 3. AĞIRLIK KURALI: Videonun %80'i tek bir konuya ayrılmışsa, aralarda 1-2 dakikalık başka ufak haberlere değinilmiş olması o videoyu bülten yapmaz. Bu videolar da UYGUN DEĞİLDİR.
 4. Asla selamlama veya kapanış metni yazma. Sadece aşağıdaki JSON formatını ver.
 ÇIKTI FORMATI:
-{
-"format_uygun_mu": true veya false,
-"kisa_gerekce": (Sınıflandırma kararını destekleyen, şemsiye konu veya reklam filtrelerini dikkate alan nesnel gerekçe)
-}
+{{"format_uygun_mu": true, "kisa_gerekce": "gerekce buraya"}}
 <TRANSKRİPT>
 {transkript}
 </TRANSKRİPT>
