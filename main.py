@@ -57,21 +57,26 @@ def get_latest_video_list():
     return found_videos
 
 def transkript_cek(video_id):
-    for attempt in range(3):
+    instances = [
+        "https://inv.nadeko.net",
+        "https://invidious.nerdvpn.de",
+        "https://invidious.privacyredirect.com"
+    ]
+    for instance in instances:
         try:
             res = requests.get(
-                f"https://api.supadata.ai/v1/youtube/transcript?videoId={video_id}",
-                headers={"x-api-key": SUPADATA_API_KEY},
-                timeout=30
+                f"{instance}/api/v1/captions/{video_id}",
+                timeout=10
             ).json()
-            if "content" in res:
-                return " ".join([t["text"] for t in res["content"]])
-            if res.get("error") == "limit-exceeded":
-                print(f"Rate limit, 10 saniye bekleniyor... (Deneme {attempt+1})")
-                time.sleep(10)
+            for caption in res:
+                if caption.get("language_code", "").startswith("tr"):
+                    vtt = requests.get(caption["url"], timeout=10).text
+                    lines = [l for l in vtt.split("\n") 
+                             if l and not "-->" in l and not l.startswith("WEBVTT")]
+                    return " ".join(lines)
         except Exception as e:
-            print(f"Deneme {attempt+1} başarısız: {type(e).__name__}")
-            time.sleep(3)
+            print(f"Instance hatası ({instance}): {e}")
+            continue
     return None
     
 def is_news_format(video):
