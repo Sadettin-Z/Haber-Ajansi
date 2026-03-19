@@ -69,12 +69,9 @@ def transkript_cek(video_id):
         ).json()
         print(f"  Apify yanıtı: {str(response)[:300]}")
         if response and len(response) > 0:
-            item = response[0]
-            transcript = item.get("transcript") or item.get("text") or item.get("captions") or ""
-            if isinstance(transcript, list):
-                transcript = " ".join([t.get("text", "") for t in transcript])
-            if transcript:
-                return transcript
+            data = response[0].get("data", [])
+            if data:
+                return " ".join([t.get("text", "") for t in data])
     except Exception as e:
         print(f"Apify hatası: {e}")
     return None
