@@ -67,16 +67,18 @@ def transkript_cek(video_id):
             },
             timeout=120
         ).json()
-        print(f"  Ham Apify yanıtı: {str(response)[:500]}")
         if response and len(response) > 0:
             data = response[0].get("searchResult") or response[0].get("data") or []
-            print(f"  Bulunan field: {list(response[0].keys())}")
             if data:
                 transkript = " ".join([t.get("text", "") for t in data])
-                print(f"  Transkript uzunluğu: {len(transkript)} karakter")
+                print(f"\n{'='*60}")
+                print(f"TRANSKRİPT [{video_id}]")
+                print(f"{'='*60}")
+                print(transkript)
+                print(f"{'='*60}\n")
                 return transkript
             else:
-                print(f"  Transkript boş geldi")
+                print(f"  ⚠️ Transkript boş geldi [{video_id}]")
     except Exception as e:
         print(f"Apify hatası: {e}")
     return None
