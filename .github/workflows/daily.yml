@@ -24,4 +24,5 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           SUPADATA_API_KEY: ${{ secrets.SUPADATA_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          APIFY_API_KEY: ${{ secrets.APIFY_API_KEY }}
         run: python main.py
