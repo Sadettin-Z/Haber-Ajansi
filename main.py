@@ -10,6 +10,7 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_URL = os.getenv("DISCORD_WEBHOOK_URL")
 SUPADATA_API_KEY = os.getenv("SUPADATA_API_KEY")
+APIFY_API_KEY = os.getenv("APIFY_API_KEY")
 
 CHANNELS = {
     "Serdar Akinan": "@serdarakinan",
@@ -57,26 +58,22 @@ def get_latest_video_list():
     return found_videos
 
 def transkript_cek(video_id):
-    instances = [
-        "https://inv.nadeko.net",
-        "https://invidious.nerdvpn.de",
-        "https://invidious.privacyredirect.com"
-    ]
-    for instance in instances:
-        try:
-            res = requests.get(
-                f"{instance}/api/v1/captions/{video_id}",
-                timeout=10
-            ).json()
-            for caption in res:
-                if caption.get("language_code", "").startswith("tr"):
-                    vtt = requests.get(caption["url"], timeout=10).text
-                    lines = [l for l in vtt.split("\n") 
-                             if l and not "-->" in l and not l.startswith("WEBVTT")]
-                    return " ".join(lines)
-        except Exception as e:
-            print(f"Instance hatası ({instance}): {e}")
-            continue
+    try:
+        response = requests.post(
+            "https://api.apify.com/v2/acts/topaz_sharingan~youtube-transcript-scraper/run-sync-get-dataset-items",
+            params={"token": os.getenv("APIFY_API_KEY")},
+            json={
+                "videoUrls": [f"https://www.youtube.com/watch?v={video_id}"],
+                "language": "tr"
+            },
+            timeout=60
+        ).json()
+        if response and len(response) > 0:
+            transcript = response[0].get("transcript", "")
+            if transcript:
+                return transcript
+    except Exception as e:
+        print(f"Apify hatası: {e}")
     return None
     
 def is_news_format(video):
