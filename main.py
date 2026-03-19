@@ -67,9 +67,8 @@ def transkript_cek(video_id):
             },
             timeout=120
         ).json()
-        print(f"  Apify yanıtı: {str(response)[:300]}")
         if response and len(response) > 0:
-            data = response[0].get("data", [])
+            data = response[0].get("searchResult") or response[0].get("data") or []
             if data:
                 return " ".join([t.get("text", "") for t in data])
     except Exception as e:
