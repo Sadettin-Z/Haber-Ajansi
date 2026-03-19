@@ -60,16 +60,19 @@ def get_latest_video_list():
 def transkript_cek(video_id):
     try:
         response = requests.post(
-            "https://api.apify.com/v2/acts/topaz_sharingan~youtube-transcript-scraper/run-sync-get-dataset-items",
+            "https://api.apify.com/v2/acts/pintostudio~youtube-transcript-scraper/run-sync-get-dataset-items",
             params={"token": os.getenv("APIFY_API_KEY")},
             json={
-                "videoUrls": [f"https://www.youtube.com/watch?v={video_id}"],
-                "language": "tr"
+                "videoUrl": f"https://www.youtube.com/watch?v={video_id}"
             },
-            timeout=60
+            timeout=120
         ).json()
+        print(f"  Apify yanıtı: {str(response)[:300]}")
         if response and len(response) > 0:
-            transcript = response[0].get("transcript", "")
+            item = response[0]
+            transcript = item.get("transcript") or item.get("text") or item.get("captions") or ""
+            if isinstance(transcript, list):
+                transcript = " ".join([t.get("text", "") for t in transcript])
             if transcript:
                 return transcript
     except Exception as e:
