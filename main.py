@@ -9,7 +9,6 @@ from google.genai import types
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_URL = os.getenv("DISCORD_WEBHOOK_URL")
-SUPADATA_API_KEY = os.getenv("SUPADATA_API_KEY")
 APIFY_API_KEY = os.getenv("APIFY_API_KEY")
 
 CHANNELS = {
@@ -17,8 +16,24 @@ CHANNELS = {
     "Erdem Atay": "@erdematayveryansintv",
     "Onlar TV": "@onlartv",
     "Cüneyt Özdemir": "@cuneytozdemir",
-    "Nevşin Mengü": "@NevşinMengüTV"
+    "Nevşin Mengü": "@NevşinMengüTV",
+    "Yılmaz Özdil": "@yilmaz_ozdil",
+    "Cem Gürdeniz": "@cemgurdenizz"
 }
+
+PROMPT_TEMPLATE = """
+Sana YouTube'da haber içeriği üreten bir kanalın videosunun transkriptini gönderiyorum. Senden isteğim bu transkripteki bütün haberleri ve detayları atlamadan bir rapor hazırlaman ve bana sunman.
+Sponsorukların, selamlamaların vs. değeri yok ama haber değeri taşıyan hiçbir bilgiyi atlamadığından emin ol. 
+Rapor anlaşılır ve akılda kalıcı olmalı. Buna göre videonun formatına uygun olan rapor formatını seç. Bilgilerin sunulma sırasını takip etmek zorunda değilsin. Eğer daha uygun olacaksa olay örgüsüne takip ederek bir rapor oluştur.
+Rapor başlangıç ve bitişinde herhangi bir selamlama, açıklama, soru önerisinde bulunma. Bana sadece raporu ver.
+
+Kanal: {channel_name}
+Video Başlığı: {video_title}
+
+<TRANSKRİPT>
+{transkript}
+</TRANSKRİPT>
+"""
 
 def is_short(video_id):
     res = requests.get(
@@ -61,122 +76,29 @@ def transkript_cek(video_id):
     try:
         response = requests.post(
             "https://api.apify.com/v2/acts/pintostudio~youtube-transcript-scraper/run-sync-get-dataset-items",
-            params={"token": os.getenv("APIFY_API_KEY")},
-            json={
-                "videoUrl": f"https://www.youtube.com/watch?v={video_id}"
-            },
+            params={"token": APIFY_API_KEY},
+            json={"videoUrl": f"https://www.youtube.com/watch?v={video_id}"},
             timeout=120
         ).json()
         if response and len(response) > 0:
             data = response[0].get("searchResult") or response[0].get("data") or []
             if data:
                 transkript = " ".join([t.get("text", "") for t in data])
-                print(f"\n{'='*60}")
-                print(f"TRANSKRİPT [{video_id}]")
-                print(f"{'='*60}")
-                print(transkript)
-                print(f"{'='*60}\n")
                 return transkript
             else:
                 print(f"  ⚠️ Transkript boş geldi [{video_id}]")
     except Exception as e:
-        print(f"Apify hatası: {e}")
+        print(f"  Apify hatası: {e}")
     return None
-    
-def is_news_format(video):
+
+def analyze_video(video, transkript):
     client = genai.Client(api_key=GEMINI_API_KEY)
-    
-    transkript = transkript_cek(video["video_id"])
-    if not transkript:
-        return False, None
-    
-    prompt = f"""
-GÖREV: Sen profesyonel bir içerik sınıflandırma uzmanısın. 
-YouTube'da haber sunan haber kanalları var ve bu haber kanallarının farklı formatta haber sunma tarzları var. Bazıları bir haber bülteni gibi günlük haberleri kısa sunup ardından kendi özet yorumlarını yapıyorlar.
-Bazıları ise video içerisinde sadece belirli bir konu üzerine derin analiz, etraflıca yorum yapıyorlar. Farklı konular bahsediyor olasalar da amaçları anlattıkları konuyu desteklemek. 
-Görevin, aşağıda transkripti verilen haber videosunun yayın formatını analiz etmek ve belirlediğim iki kategoriden hangisine ait olduğunu tespit etmektir.
-BAĞLAM VE KATEGORİLER:
-Senin aradığın format "Kısa Haber ve Yorum" formatıdır (Haber bülteni mantığı).
-1. UYGUN FORMAT (Kısa Haber ve Yorum): Yayıncı, video boyunca birbirinden bağımsız birden fazla farklı haber başlığına değinir (Örn: Önce yerel ekonomiden bahseder, biter; sonra Avrupa'daki bir seçime geçer, biter; sonra bir magazin/asayiş olayına geçer).
-2. UYGUN OLMAYAN FORMAT (Tek Konu / Derinlemesine Analiz): Videonun tamamı veya çok büyük bir kısmı tek bir ana olay üzerine kuruludur.
-KATI KURALLAR VE YANILSAMA FİLTRELERİ (BUNLARA KESİNLİKLE DİKKAT ET):
-1. ŞEMSİYE KONU KURALI: Eğer yayıncı farklı ülkelerden, farklı isimlerden veya farklı alt olaylardan bahsediyorsa AMA bunların hepsi tek bir büyük olaya bağlanıyorsa, bu "TEK KONUNUN alt başlıklarıdır". Bu tür videolar UYGUN DEĞİLDİR.
-2. SOHBET VE SPONSOR KURALI: Sponsorlu reklamlar, özel gün kutlamaları, selamlama ritüelleri veya izleyiciyle yapılan kısa sohbetler KESİNLİKLE ayrı bir haber konusu sayılamaz.
-3. AĞIRLIK KURALI: Videonun %80'i tek bir konuya ayrılmışsa, aralarda 1-2 dakikalık başka ufak haberlere değinilmiş olması o videoyu bülten yapmaz. Bu videolar da UYGUN DEĞİLDİR.
-4. Asla selamlama veya kapanış metni yazma. Sadece aşağıdaki formatta yanıt ver.
 
-ÇIKTI FORMATI:
-Satır 1 (sadece bu iki kelimeden biri): UYGUN veya UYGUN_DEGIL
-Satır 2: gerekçen
-
-Örnek:
-UYGUN
-Video birden fazla bağımsız haber konusunu ele almaktadır.
-
-<TRANSKRİPT>
-{transkript}
-</TRANSKRİPT>
-"""
-    try:
-        response = client.models.generate_content(
-            model='gemini-3-flash-preview',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.1,
-                max_output_tokens=200,
-                thinking_config=types.ThinkingConfig(
-                    thinking_level=types.ThinkingLevel.HIGH
-                )
-            )
-        )
-        raw = response.text.strip()
-        print(f"  Ham yanıt [{video['name']}]: {raw}")
-        satirlar = raw.split("\n")
-        karar = satirlar[0].strip().upper() == "UYGUN"
-        gerekce = satirlar[1].strip() if len(satirlar) > 1 else ""
-        print(f"  Format kontrolü [{video['name']}]: {'✓' if karar else '✗'} — {gerekce}")
-        return karar, transkript
-    except Exception as e:
-        print(f"  Format kontrolü hatası: {e}")
-        return True, transkript
-        
-def analyze_single_video(video, transkript=None):
-    """Tek bir videoyu analiz et ve rapor döndür."""
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    
-    if transkript is None:
-        transkript = transkript_cek(video["video_id"])
-    
-    print(f"\n===== TRANSKRİPT: [{video['name']}] {video['title']} =====\n{transkript}\n=============================================\n")
-    
-    if not transkript:
-        return f"⚠️ [{video['name']}] \"{video['title']}\" — transkript alınamadı."
-
-    prompt = f"""
-GÖREV: Sen profesyonel bir içerik analiz uzmanısın. Aşağıdaki transkripti, içerisindeki istisnasız her bir farklı konuyu/başlığı kapsayacak şekilde özetleyeceksin.
-
-KESİN TALİMATLAR:
-SIFIR KAYIP POLİTİKASI: Metinde geçen ana haberler, ara başlıklar veya kısa bilgi notlarının HİÇBİRİNİ atlama. "Özet" demek, sadece önemli olanları seçmek değil; her bir konunun özünü aktarmaktır.
-KONU BAZLI GRUPLAMA: Videodaki konular dağınık işlenmiş veya aynı konuya defalarca geri dönülmüş olabilir. Aynı konuya ait tüm detayları ve yorumları tek bir başlık altında birleştir.
-TARAFIZLIK: Metne hiçbir yorum, duygu veya dış bilgi ekleme. Yayıncı yorumlarını yumuşatmadan olduğu gibi aktar.
-BÜTÜNLÜK KONTROLÜ: Metnin son saniyesine kadar tarama yapmayı sürdür.
-GEVEZELİK: Selamlama veya kapanış cümlesi ekleme, doğrudan rapora başla.
-
-Her başlık için şu yapıyı kullan:
-
-🔹 **HABERİN BAŞLIĞI**
-**Haber:** (Tarafsız özet. Kim, ne yaptı, nerede, ne zaman, sonucu ne? Tüm önemli isimler, rakamlar ve detaylar dahil.)
-**Yayıncı Yorumları:**
-* **[Yayıncı Adı]:** (Yaklaşımı, vurguladığı noktalar, kullandığı özel ifadeler)
-
-Kanal: {video['name']}
-Video Başlığı: {video['title']}
-
-<TRANSKRİPT>
-{transkript}
-</TRANSKRİPT>
-
-"""
+    prompt = PROMPT_TEMPLATE.format(
+        channel_name=video["name"],
+        video_title=video["title"],
+        transkript=transkript
+    )
 
     for attempt in range(3):
         try:
@@ -196,68 +118,10 @@ Video Başlığı: {video['title']}
                 return response.text.strip()
         except Exception as e:
             wait = (attempt + 1) * 30
-            print(f"API hatası (deneme {attempt+1}): {e} — {wait} saniye bekleniyor...")
+            print(f"  API hatası (deneme {attempt+1}): {e} — {wait} saniye bekleniyor...")
             time.sleep(wait)
+
     return f"⚠️ [{video['name']}] \"{video['title']}\" — AI yanıt vermedi."
-    
-def combine_reports(individual_reports, videos):
-    """Tüm bireysel raporları tek bir final rapora birleştir."""
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    current_date = datetime.now().strftime("%d.%m.%Y")
-    sources = "\n".join([f"- [{v['name']}] {v['title']}" for v in videos])
-    combined = "\n\n---\n\n".join(individual_reports)
-
-    prompt = f"""
-Sen tarafsız, nesnel ve profesyonel bir haber derleyici ve analistsin.
-Aşağıda birden fazla YouTube haber kanalından toplanıp birleştirilmiş bir rapor var. Fakat birden fazla kaynaktan alındığı için bazı haberlerin tekrar ettiğini göreceksin.
-Senin görevin tekrar eden haberleri ve altındaki yorumları birleştirmek.
-
-KATI KURALLAR:
-1. Sadece birbirinin aynısı olan haberleri birleştir. Birbiriyle ilgili ya da yakın olan haberleri ayrı bırak.
-2. Hiçbir bilgiyi, ismi, rakamı veya analizi çıkarma.
-3. Birbirinin aynısı olan haberleri birleştirirken yayıncıların verdiği detayları silme, birleştir.
-3. Başlıkları önem sırasına göre düzenle: önce dış politika, sonra iç politika, en sona magazin ve diğerleri.
-4. Selamlama veya kapanış cümlesi ekleme.
-5. Rapor formatı Discord'da paylaşılmaya uygun olmalı
-
-Raporun başına şunu ekle:
-
-📅 **Tarih: {current_date}**
-
-**İncelenen Kaynaklar:**
-{sources}
-
----
-
-<RAPORLAR>
-{combined}
-</RAPORLAR>
-"""
-
-    for attempt in range(3):
-        try:
-            response = client.models.generate_content(
-                model='gemini-3-flash-preview',
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.2,
-                    top_p=0.9,
-                    max_output_tokens=64000,
-                    thinking_config=types.ThinkingConfig(
-                        thinking_level=types.ThinkingLevel.HIGH
-                    )
-                )
-            )
-       
-            if response.text:
-                return response.text.strip()
-            else:
-                print(f"Birleştirme deneme {attempt+1}: response.text boş geldi.")
-        except Exception as e:
-            wait = (attempt + 1) * 30
-            print(f"Birleştirme API hatası (deneme {attempt+1}): {e} — {wait} saniye bekleniyor...")
-            time.sleep(wait)
-    return "⚠️ Final rapor oluşturulamadı — AI yanıt vermedi."
 
 def send_to_discord(report):
     while report:
@@ -277,6 +141,7 @@ def send_to_discord(report):
 
 if __name__ == "__main__":
     videos = get_latest_video_list()
+
     if not videos:
         print("Son 24 saatte yeni video bulunamadı.")
     else:
@@ -284,28 +149,27 @@ if __name__ == "__main__":
         for v in videos:
             print(f"  - [{v['name']}] {v['title']}")
 
-        individual_reports = []
-        included_videos = []
+        sent_count = 0
 
         for i, video in enumerate(videos):
-            print(f"[{i+1}/{len(videos)}] Kontrol ediliyor: [{video['name']}] {video['title']}")
-            
-            is_news, transkript = is_news_format(video)
-            
-            if not is_news:
-                print(f"  ⏭️ Atlandı (derinlemesine analiz formatı)")
+            print(f"\n[{i+1}/{len(videos)}] İşleniyor: [{video['name']}] {video['title']}")
+
+            transkript = transkript_cek(video["video_id"])
+            if not transkript:
+                print(f"  ⚠️ Transkript alınamadı, atlanıyor.")
                 continue
-            
-            print(f"  ✓ Haber formatı, analiz ediliyor...")
-            report = analyze_single_video(video, transkript)
-            individual_reports.append(report)
-            included_videos.append(video)
+
+            print(f"  ✓ Transkript alındı, analiz ediliyor...")
+            report = analyze_video(video, transkript)
+
+            current_date = datetime.now().strftime("%d.%m.%Y")
+            header = f"📅 **{current_date}** | 📺 **[{video['name']}]** — {video['title']}\nhttps://www.youtube.com/watch?v={video['video_id']}\n\n"
+            send_to_discord(header + report)
+            sent_count += 1
+            print(f"  ✅ Discord'a gönderildi.")
             time.sleep(2)
 
-        if not individual_reports:
-            print("Bugün haber formatında video bulunamadı.")
+        if sent_count == 0:
+            print("Hiçbir video işlenemedi.")
         else:
-            print("Birleştirme aşaması başlatılıyor...")
-            final_report = combine_reports(individual_reports, included_videos)
-            send_to_discord(final_report)
-            print("İşlem tamamlandı, rapor Discord'a uçtu!")
+            print(f"\nİşlem tamamlandı. {sent_count} rapor Discord'a gönderildi!")
