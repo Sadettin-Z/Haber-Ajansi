@@ -15,7 +15,6 @@ CHANNELS = {
     "Serdar Akinan": "@serdarakinan",
     "Erdem Atay": "@erdematayveryansintv",
     "Onlar TV": "@onlartv",
-    "Cüneyt Özdemir": "@cuneytozdemir",
     "Nevşin Mengü": "@NevşinMengüTV",
     "Yılmaz Özdil": "@yilmaz_ozdil",
     "Cem Gürdeniz": "@cemgurdenizz"
@@ -149,7 +148,7 @@ if __name__ == "__main__":
         for v in videos:
             print(f"  - [{v['name']}] {v['title']}")
 
-        sent_count = 0
+        all_reports = []
 
         for i, video in enumerate(videos):
             print(f"\n[{i+1}/{len(videos)}] İşleniyor: [{video['name']}] {video['title']}")
@@ -160,16 +159,18 @@ if __name__ == "__main__":
                 continue
 
             print(f"  ✓ Transkript alındı, analiz ediliyor...")
+            print(f"  📝 TRANSKRİPT (ilk 500 karakter):\n{transkript[:500]}...\n")
             report = analyze_video(video, transkript)
 
-            current_date = datetime.now().strftime("%d.%m.%Y")
-            header = f"📅 **{current_date}** | 📺 **[{video['name']}]** — {video['title']}\nhttps://www.youtube.com/watch?v={video['video_id']}\n\n"
-            send_to_discord(header + report)
-            sent_count += 1
-            print(f"  ✅ Discord'a gönderildi.")
+            video_section = f"📺 **[{video['name']}]** — {video['title']}\nhttps://www.youtube.com/watch?v={video['video_id']}\n\n{report}"
+            all_reports.append(video_section)
+            print(f"  ✅ Rapor hazırlandı.")
             time.sleep(2)
 
-        if sent_count == 0:
+        if not all_reports:
             print("Hiçbir video işlenemedi.")
         else:
-            print(f"\nİşlem tamamlandı. {sent_count} rapor Discord'a gönderildi!")
+            current_date = datetime.now().strftime("%d.%m.%Y")
+            full_report = f"📅 **{current_date}**\n\n" + "\n\n---\n\n".join(all_reports)
+            send_to_discord(full_report)
+            print(f"\nİşlem tamamlandı. {len(all_reports)} video tek rapor olarak Discord'a gönderildi!")
