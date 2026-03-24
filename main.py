@@ -2,6 +2,7 @@ import os
 import time
 import requests
 import isodate
+import re
 from datetime import datetime, timedelta
 from google import genai
 from google.genai import types
@@ -137,7 +138,12 @@ def send_to_discord(report):
             report = report[split_at:].lstrip()
         requests.post(DISCORD_URL, json={"content": chunk})
         time.sleep(0.5)
-
+def strip_markdown(text):
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)  # **bold** → bold
+    text = re.sub(r'\*(.+?)\*', r'\1', text)        # *italic* → italic
+    text = re.sub(r'<(https?://[^>]+)>', r'\1', text)  # <url> → url
+    return text
+    
 if __name__ == "__main__":
     videos = get_latest_video_list()
 
@@ -175,7 +181,7 @@ if __name__ == "__main__":
             full_report = f"📅 **{current_date}**\n\n" + "\n\n---\n\n".join(all_reports)
             send_to_discord(full_report)
 
-            txt_content = full_report.encode("utf-8")
+            txt_content = strip_markdown(full_report).encode("utf-8")
             filename = f"rapor_{current_date.replace('.', '-')}.txt"
             requests.post(DISCORD_URL, files={"file": (filename, txt_content, "text/plain")})
 
