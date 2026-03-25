@@ -21,7 +21,8 @@ CHANNELS = {
     "Onlar TV": "@onlartv",
     "Nevşin Mengü": "@NevşinMengüTV",
     "Yılmaz Özdil": "@yilmaz_ozdil",
-    "Cem Gürdeniz": "@cemgurdenizz"
+    "Cem Gürdeniz": "@cemgurdenizz",
+    "Caspian Report": "@CaspianReport"
 }
 
 PROMPT_TEMPLATE = """
