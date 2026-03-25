@@ -7,9 +7,13 @@ from google import genai
 from google.genai import types
 
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_URL = os.getenv("DISCORD_WEBHOOK_URL")
 APIFY_API_KEY = os.getenv("APIFY_API_KEY")
+GEMINI_API_KEYS = [
+    os.getenv("GEMINI_API_KEY_1"),
+    os.getenv("GEMINI_API_KEY_2"),
+    os.getenv("GEMINI_API_KEY_3"),
+]
 
 CHANNELS = {
     "Serdar Akinan": "@serdarakinan",
@@ -92,36 +96,41 @@ def transkript_cek(video_id):
     return None
 
 def analyze_video(video, transkript):
-    client = genai.Client(api_key=GEMINI_API_KEY)
-
     prompt = PROMPT_TEMPLATE.format(
         channel_name=video["name"],
         video_title=video["title"],
         transkript=transkript
     )
 
-    for attempt in range(3):
-        try:
-            response = client.models.generate_content(
-                model='gemini-3-flash-preview',
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.3,
-                    top_p=0.9,
-                    max_output_tokens=16000,
-                    thinking_config=types.ThinkingConfig(
-                        thinking_level=types.ThinkingLevel.HIGH
+    for key in GEMINI_API_KEYS:
+        if not key:
+            continue
+        client = genai.Client(api_key=key)
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(
+                    model='gemini-3-flash',
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.3,
+                        top_p=0.9,
+                        max_output_tokens=16000,
+                        thinking_config=types.ThinkingConfig(
+                            thinking_level=types.ThinkingLevel.HIGH
+                        )
                     )
                 )
-            )
-            if response.text:
-                return response.text.strip()
-        except Exception as e:
-            wait = (attempt + 1) * 30
-            print(f"  API hatası (deneme {attempt+1}): {e} — {wait} saniye bekleniyor...")
-            time.sleep(wait)
+                if response.text:
+                    return response.text.strip()
+            except Exception as e:
+                if "RESOURCE_EXHAUSTED" in str(e):
+                    print(f"  Key exhausted, trying next key...")
+                    break
+                wait = (attempt + 1) * 30
+                print(f"  API hatası (deneme {attempt+1}): {e} — {wait} saniye bekleniyor...")
+                time.sleep(wait)
 
-    return f"⚠️ [{video['name']}] \"{video['title']}\" — AI yanıt vermedi."
+    return f"⚠️ [{video['name']}] \"{video['title']}\" — Tüm API keyleri tükendi."
 
 def send_to_discord(report):
     while report:
