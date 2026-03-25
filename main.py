@@ -78,7 +78,7 @@ def transkript_cek(video_id):
             "https://api.apify.com/v2/acts/pintostudio~youtube-transcript-scraper/run-sync-get-dataset-items",
             params={"token": APIFY_API_KEY},
             json={"videoUrl": f"https://www.youtube.com/watch?v={video_id}"},
-            timeout=120
+            timeout=60
         ).json()
         if response and len(response) > 0:
             data = response[0].get("searchResult") or response[0].get("data") or []
