@@ -2,7 +2,6 @@ import os
 import time
 import requests
 import isodate
-import re
 from datetime import datetime, timedelta
 from google import genai
 from google.genai import types
@@ -168,8 +167,7 @@ if __name__ == "__main__":
             print(f"  📝 TRANSKRİPT (ilk 500 karakter):\n{transkript[:500]}...\n")
             report = analyze_video(video, transkript)
 
-            video_url = f"https://www.youtube.com/watch?v={video['video_id']}"
-            video_section = f"📺 **[{video['name']}]** — {video['title']}\n<{video_url}>\n\n{report}"
+            video_section = f"**{len(all_reports) + 1}**\n📺 **[{video['name']}]** — {video['title']}\n\n{report}"
             all_reports.append(video_section)
             print(f"  ✅ Rapor hazırlandı.")
             time.sleep(2)
@@ -180,9 +178,4 @@ if __name__ == "__main__":
             current_date = datetime.now().strftime("%d.%m.%Y")
             full_report = f"📅 **{current_date}**\n\n" + "\n\n---\n\n".join(all_reports)
             send_to_discord(full_report)
-
-            txt_content = strip_markdown(full_report).encode("utf-8")
-            filename = f"rapor_{current_date.replace('.', '-')}.txt"
-            requests.post(DISCORD_URL, files={"file": (filename, txt_content, "text/plain")})
-
             print(f"\nİşlem tamamlandı. {len(all_reports)} video Discord'a gönderildi!")
