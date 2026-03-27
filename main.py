@@ -80,22 +80,24 @@ def get_latest_video_list():
     return found_videos
 
 def transkript_cek(video_id):
-    try:
-        response = requests.post(
-            "https://api.apify.com/v2/acts/pintostudio~youtube-transcript-scraper/run-sync-get-dataset-items",
-            params={"token": APIFY_API_KEY},
-            json={"videoUrl": f"https://www.youtube.com/watch?v={video_id}"},
-            timeout=60
-        ).json()
-        if response and len(response) > 0:
-            data = response[0].get("searchResult") or response[0].get("data") or []
-            if data:
-                transkript = " ".join([t.get("text", "") for t in data])
-                return transkript
-            else:
-                print(f"  ⚠️ Transkript boş geldi [{video_id}]")
-    except Exception as e:
-        print(f"  Apify hatası: {e}")
+    for attempt in range(3):
+        try:
+            response = requests.post(
+                "https://api.apify.com/v2/acts/pintostudio~youtube-transcript-scraper/run-sync-get-dataset-items",
+                params={"token": APIFY_API_KEY},
+                json={"videoUrl": f"https://www.youtube.com/watch?v={video_id}"},
+                timeout=60
+            ).json()
+            if response and len(response) > 0:
+                data = response[0].get("searchResult") or response[0].get("data") or []
+                if data:
+                    transkript = " ".join([t.get("text", "") for t in data])
+                    return transkript
+                else:
+                    print(f"  ⚠️ Transkript boş geldi [{video_id}], deneme {attempt+1}/3")
+        except Exception as e:
+            print(f"  Apify hatası (deneme {attempt+1}/3): {e}")
+        time.sleep(10)
     return None
 
 def analyze_video(video, transkript):
