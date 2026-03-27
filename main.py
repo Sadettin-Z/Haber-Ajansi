@@ -47,9 +47,9 @@ def is_short(video_id):
     try:
         duration = res["items"][0]["contentDetails"]["duration"]
         seconds = isodate.parse_duration(duration).total_seconds()
-        return seconds <= 180
+        return seconds <= 180, f"{int(seconds // 60)} dk"
     except Exception:
-        return False
+        return False, "? dk"
 
 def get_latest_video_list():
     found_videos = []
@@ -67,11 +67,13 @@ def get_latest_video_list():
                 pub_date = datetime.strptime(item["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ")
                 if pub_date > yesterday_dt:
                     video_id = item["snippet"]["resourceId"]["videoId"]
-                    if not is_short(video_id):
+                    short, duration = is_short(video_id)
+                    if not short:
                         found_videos.append({
                             "name": name,
                             "title": item["snippet"]["title"],
-                            "video_id": video_id
+                            "video_id": video_id,
+                            "duration": duration
                         })
         except Exception as e:
             print(f"HATA: {name}: {e}")
@@ -148,12 +150,7 @@ def send_to_discord(report):
             report = report[split_at:].lstrip()
         requests.post(DISCORD_URL, json={"content": chunk})
         time.sleep(0.5)
-def strip_markdown(text):
-    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)  # **bold** → bold
-    text = re.sub(r'\*(.+?)\*', r'\1', text)        # *italic* → italic
-    text = re.sub(r'<(https?://[^>]+)>', r'\1', text)  # <url> → url
-    return text
-    
+
 if __name__ == "__main__":
     videos = get_latest_video_list()
 
@@ -178,7 +175,7 @@ if __name__ == "__main__":
             print(f"  📝 TRANSKRİPT (ilk 500 karakter):\n{transkript[:500]}...\n")
             report = analyze_video(video, transkript)
 
-            video_section = f"**{len(all_reports) + 1}**\n📺 **[{video['name']}]** — {video['title']}\n\n{report}"
+            video_section = f"**{len(all_reports) + 1}.** 📺 **[{video['name']}]** — {video['title']} `({video['duration']})`\n\n{report}"
             all_reports.append(video_section)
             print(f"  ✅ Rapor hazırlandı.")
             time.sleep(2)
