@@ -54,7 +54,7 @@ def is_short(video_id):
 
 def get_latest_video_list():
     found_videos = []
-    yesterday_dt = datetime.utcnow() - timedelta(days=1)
+    yesterday_dt = datetime.now(datetime.UTC) - timedelta(days=1)
     for name, handle in CHANNELS.items():
         try:
             c_res = requests.get(
