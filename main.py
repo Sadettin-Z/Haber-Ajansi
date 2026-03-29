@@ -18,6 +18,7 @@ GEMINI_API_KEYS = [
 CHANNELS = {
     "Serdar Akinan": "@serdarakinan",
     "Erdem Atay": "@erdematayveryansintv",
+    "Veryansın Tv": "@VeryansinTv",
     "Onlar TV": "@onlartv",
     "Yılmaz Özdil": "@yilmaz_ozdil",
     "Cem Gürdeniz": "@cemgurdenizz",
