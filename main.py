@@ -2,7 +2,7 @@ import os
 import time
 import requests
 import isodate
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from google import genai
 from google.genai import types
 
@@ -42,6 +42,7 @@ Video Başlığı: {video_title}
 """
 
 def is_short(video_id):
+    # Videos under 3 minutes are filtered out (YouTube Shorts etc.)
     res = requests.get(
         f"https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id={video_id}&key={YOUTUBE_API_KEY}"
     ).json()
@@ -54,7 +55,7 @@ def is_short(video_id):
 
 def get_latest_video_list():
     found_videos = []
-    yesterday_dt = datetime.now(datetime.UTC) - timedelta(days=1)
+    yesterday_dt = datetime.now(timezone.utc) - timedelta(days=1)
     for name, handle in CHANNELS.items():
         try:
             c_res = requests.get(
@@ -65,7 +66,7 @@ def get_latest_video_list():
                 f"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId={uploads_id}&maxResults=5&key={YOUTUBE_API_KEY}"
             ).json()
             for item in res.get("items", []):
-                pub_date = datetime.strptime(item["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ")
+                pub_date = datetime.strptime(item["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
                 if pub_date > yesterday_dt:
                     video_id = item["snippet"]["resourceId"]["videoId"]
                     short, duration = is_short(video_id)
@@ -81,6 +82,7 @@ def get_latest_video_list():
     return found_videos
 
 def transkript_cek(video_id):
+    # Fetches transcript via Apify, retries 3 times on failure
     for attempt in range(3):
         try:
             response = requests.post(
@@ -102,6 +104,7 @@ def transkript_cek(video_id):
     return None
 
 def analyze_video(video, transkript):
+    # Tries each Gemini API key in order, moves to next if quota exceeded
     prompt = PROMPT_TEMPLATE.format(
         channel_name=video["name"],
         video_title=video["title"],
