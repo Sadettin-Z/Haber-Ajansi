@@ -30,8 +30,8 @@ PROMPT_TEMPLATE = """
 Sana YouTube'da haber içeriği üreten bir kanalın videosunun transkriptini gönderiyorum. Senden isteğim bu transkripteki bütün haberleri ve detayları atlamadan bir rapor hazırlaman ve bana sunman.
 Sponsorukların, selamlamaların vs. değeri yok ama haber değeri taşıyan hiçbir bilgiyi atlamadığından emin ol. 
 Rapor anlaşılır ve akılda kalıcı olmalı. Buna göre videonun formatına uygun olan rapor formatını seç. Bilgilerin sunulma sırasını takip etmek zorunda değilsin. Eğer daha uygun olacaksa olay örgüsüne takip ederek bir rapor oluştur.
-Videolarda konuklar tarafından yapılan yorumları konuklara atfet ki rapordaki yorumların kimin yorumu olduğunu anlayayım.
-Rapor başlangıç ve bitişinde herhangi bir selamlama, açıklama, soru önerisinde bulunma. Bana sadece raporu ver.
+Videolarda konuklar tarafından yapılan yorumları konuklara atfet ki rapordaki yorumların kimin yorumu olduğu anlaşılsın.
+Rapor başlangıç ve bitişinde herhangi bir selamlama, açıklama, soru önerisinde bulunma. Sadece raporu ver.
 
 Kanal: {channel_name}
 Video Başlığı: {video_title}
