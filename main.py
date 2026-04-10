@@ -86,13 +86,13 @@ def transkript_cek(video_id):
     for attempt in range(3):
         try:
             response = requests.post(
-                "https://api.apify.com/v2/acts/pintostudio~youtube-transcript-scraper/run-sync-get-dataset-items",
+                "https://api.apify.com/v2/acts/starvibe~youtube-video-transcript/run-sync-get-dataset-items",
                 params={"token": APIFY_API_KEY},
-                json={"videoUrl": f"https://www.youtube.com/watch?v={video_id}"},
+                json={"youtube_url": f"https://www.youtube.com/watch?v={video_id}"},
                 timeout=60
             ).json()
             if response and len(response) > 0:
-                data = response[0].get("searchResult") or response[0].get("data") or []
+                data = response[0].get("transcript") or []
                 if data:
                     transkript = " ".join([t.get("text", "") for t in data])
                     return transkript
