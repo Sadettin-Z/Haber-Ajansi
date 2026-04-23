@@ -41,8 +41,33 @@ Video Başlığı: {video_title}
 </TRANSKRİPT>
 """
 
+CONSOLIDATION_PROMPT = """Sistem Rolü: Sen uzman bir haber editörü ve istihbarat analistisin. Sana çeşitli Türk YouTube haber yayınlarının bireysel özetlerini içeren, derlenmiş bir metin sunuyorum.
+Görevin: Bu raporun tamamını, farklı kanallardaki tekrar eden haber başlıklarını en üstte birleştirecek, geriye kalan kanala özel haberleri ise orijinal başlıkları altında bırakacak şekilde yeniden yapılandırmaktır. Bunu yaparken KESİNLİKLE hiçbir bilgi kaybı yaşanmamalıdır. Raporlardaki her bir detay, veri, alıntı ve kanala özgü yorumcu perspektifi eksiksiz bir şekilde korunmalıdır.
+Lütfen aşağıdaki yapılandırma kurallarına sıkı sıkıya uy:
+1. 📌 ORTAK GÜNDEM
+
+* Raporun en üstünde bu başlığı oluştur.
+* Sunulan metinde birden fazla kaynak tarafından ele alınan haberleri, olayları veya temaları (Örn: Hürmüz Boğazı gerilimi veya AB açıklamaları) tespit et ve bu bölümün altına taşı.
+* Ortak konular için kapsayıcı bir başlık oluştur, olayın temel detaylarını özetle.
+* Ardından, bu olayla ilgili her bir kanalın/yorumcunun sunduğu özgün analizleri madde işaretleriyle listele ve yorumcunun adını kalın harflerle vurgula (Örn: "Cem Gürdeniz'in Yorumu:", "Cüneyt Özdemir'in Analizi:").
+2. 🎙️ KANALLARA ÖZEL HABERLER (Orijinal Başlıklar Altında)
+
+* Ortak Gündem'e taşınmayan ve yalnızca tek bir kaynak tarafından ele alınan özel haberleri orijinal yerlerinde bırak.
+* Girdi metninde sana verilen orijinal kanal ve video başlıklarını (Örn: "7. [Cüneyt Özdemir] — Suriyeliler Gidince Üretim Durdu mu? (9 dk)") aynen koru.
+* Sadece o kanala ait olan benzersiz haberleri, bu orijinal başlıkların altında listelemeye devam et. (Eğer bir kanalın tüm haberleri Ortak Gündem'e taşındıysa, o kanalın başlığının altına "Tüm başlıklar Ortak Gündem'de birleştirilmiştir." şeklinde kısa bir not düşebilirsin).
+* Özette yer alan tüm madde işaretlerini, verileri ve analizleri orijinal halini bozmadan olduğu gibi koru.
+Kritik Kısıtlamalar:
+
+* Kesinlikle aşırı özetleme veya kırpma yapma. Eğer iki kanal aynı olay hakkında farklı detaylar sunuyorsa, her ikisine de metinde yer ver.
+* Çıktının son derece okunaklı ve düzenli olmasını sağla. Bölümleri ayırmak için yatay çizgiler (`---`), vurgular için kalın metinler (`**...**`) ve kolay okunabilirlik için madde işaretleri kullan.
+* Rapor başlangıç ve bitişinde herhangi bir selamlama, açıklama, soru önerisinde bulunma. Sadece raporu ver.
+
+<RAPORLAR>
+{combined_reports}
+</RAPORLAR>
+"""
+
 def is_short(video_id):
-    # Videos under 3 minutes are filtered out (YouTube Shorts etc.)
     res = requests.get(
         f"https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id={video_id}&key={YOUTUBE_API_KEY}"
     ).json()
@@ -82,7 +107,6 @@ def get_latest_video_list():
     return found_videos
 
 def transkript_cek(video_id):
-    # Fetches transcript via Apify, retries 3 times on failure
     for attempt in range(3):
         try:
             response = requests.post(
@@ -103,14 +127,8 @@ def transkript_cek(video_id):
         time.sleep(10)
     return None
 
-def analyze_video(video, transkript):
-    # Tries each Gemini API key in order, moves to next if quota exceeded
-    prompt = PROMPT_TEMPLATE.format(
-        channel_name=video["name"],
-        video_title=video["title"],
-        transkript=transkript
-    )
-
+def call_gemini(prompt):
+    """Shared helper: tries each API key in order, returns text or None."""
     for key in GEMINI_API_KEYS:
         if not key:
             continue
@@ -138,8 +156,29 @@ def analyze_video(video, transkript):
                 wait = (attempt + 1) * 30
                 print(f"  API hatası (deneme {attempt+1}): {e} — {wait} saniye bekleniyor...")
                 time.sleep(wait)
+    return None
 
+def analyze_video(video, transkript):
+    prompt = PROMPT_TEMPLATE.format(
+        channel_name=video["name"],
+        video_title=video["title"],
+        transkript=transkript
+    )
+    result = call_gemini(prompt)
+    if result:
+        return result
     return f"⚠️ [{video['name']}] \"{video['title']}\" — Tüm API keyleri tükendi."
+
+def consolidate_reports(combined_reports_text):
+    """Sends all individual reports to Gemini for cross-channel consolidation."""
+    print("\n🔄 Tüm raporlar birleştiriliyor (konsolidasyon)...")
+    prompt = CONSOLIDATION_PROMPT.format(combined_reports=combined_reports_text)
+    result = call_gemini(prompt)
+    if result:
+        print("  ✅ Konsolidasyon tamamlandı.")
+        return result
+    print("  ⚠️ Konsolidasyon başarısız, bireysel raporlar gönderiliyor.")
+    return combined_reports_text  # Fallback: send the unmerged version
 
 def send_to_discord(report):
     while report:
@@ -190,6 +229,11 @@ if __name__ == "__main__":
             print("Hiçbir video işlenemedi.")
         else:
             current_date = datetime.now().strftime("%d.%m.%Y")
-            full_report = f"📅 **{current_date}**\n\n" + "\n\n---\n\n".join(all_reports)
+            combined_text = "\n\n---\n\n".join(all_reports)
+
+            # Final consolidation pass across all reports
+            final_report_body = consolidate_reports(combined_text)
+
+            full_report = f"📅 **{current_date}**\n\n{final_report_body}"
             send_to_discord(full_report)
-            print(f"\nİşlem tamamlandı. {len(all_reports)} video Discord'a gönderildi!")
+            print(f"\nİşlem tamamlandı. {len(all_reports)} video işlendi, konsolide rapor Discord'a gönderildi!")
